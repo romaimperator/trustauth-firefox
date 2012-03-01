@@ -43,21 +43,12 @@ var Foamicator = {
           // Listener for the generate keys button
           var control = doc.getElementById("genbutton");
           control.addEventListener("click", function(e) { Foamicator.generate_keys(); }, false);
-
-          // Listener for the Show value button
-          var showvalue = doc.getElementById("showvalue");
-          showvalue.addEventListener("click", function(e) { Foamicator.show(); }, false);
         }
       }
     };
 
     // Add the listener
     Services.obs.addObserver(observer, "addon-options-displayed", false);
-  },
-
-  show: function() {
-    //alert(Foamicator.prefs.getCharPref("e"));
-    //alert(this.rsakey.decrypt('49c6b5ad967786f97d68a50026870d1967304ad12e5aba86cc6aaec9d0c39618cca6b58032e8c3704f1a0c75412b2ab8d8768acd95c931fbc17e3f1636da3ff17132eb722f3507f7a9525b954d433b945ed7a471a48e10c69ee7f1b43bfd83350afa77c0238d59d397b0c3be82a5fb243f9339bad79126510636d08b24951301'));
   },
 
   login: function (event) {

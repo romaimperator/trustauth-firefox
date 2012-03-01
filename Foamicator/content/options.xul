@@ -9,7 +9,4 @@
   <setting type="control" title="Generate Keys">
     <button id="genbutton" label="Generate Keys" oncommand="Foamicator.generate_keys();"/>
   </setting>
-  <setting type="control" title="Show Value">
-    <button id="showvalue" label="Show Value"/>
-  </setting>
 </vbox>
