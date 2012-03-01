@@ -728,7 +728,12 @@ pki.rsa.setPublicKey = function(n, e)
    {
       return pki.rsa.encrypt(data, key, 0x02);
    };
-   
+
+   key.decrypt = function(data)
+   {
+      return pki.rsa.decrypt(data, key, true);
+   };
+
    /**
     * Verifies the given signature against the given digest.
     *
@@ -802,7 +807,12 @@ pki.rsa.setPrivateKey = function(n, e, d, p, q, dP, dQ, qInv)
    {
       return pki.rsa.decrypt(data, key, false);
    };
-   
+
+   key.encrypt = function(data)
+   {
+      return pki.rsa.encrypt(data, key, 0x01);
+   };
+
    /**
     * Signs the given digest, producing a signature.
     *
