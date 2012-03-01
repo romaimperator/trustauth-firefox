@@ -56,19 +56,7 @@ kYmx+pgcxu7ASioPXuefiZh4QuFNSNb6ztiz29W8EmWZbvSQ1pg+QwDb1OA/qfCn
 T0geNpMflU4JIDrHDwIBAw==
 -----END PUBLIC KEY-----
 EOF;
-    /*$public_key = <<<EOF
------BEGIN PUBLIC KEY-----
-MIGdMA0GCSqGSIb3DQEBAQUAA4GLADCBhwKBgQC/fi3/avtGZ37T+rgL4X/4Peoi
-FCzvFgGahkw6aZKT0ZgbR0bRrf4Gvm3RrhnCMKDV9sL5K91ikHiv5mNrbJDdnvpP
-GhmvTkWLKIgzn0QjJj54bCJfRI76No/ad567cKlWEesbhcsdHMSNCSnO6+DrwvhZ
-DVZ+4QHs/J0rLVDaRQIBAw==
------END PUBLIC KEY-----
-EOF;*/
     $_SESSION['public_key'] = $public_key;
-    //$_SESSION['public_key'] = '9ff31a8134f41b330191169ebb56b32c039d656331bedfe4ad6af37ea1d92fd2abda7a614f93bc373b581f12f0db8b488b55793176a7bcfdfc20c4e3998cb79907fb7dd36bc884dcc46f454c7bc138a9c1f4c17fac53131386afce197d26e799f44aa159f957445a7f58486717b3bc984b6fa5d30b48584939609448fd8ffff7';
-    //$_SESSION['exponent']   = '3';
-    //$public_key = new Math_BigInteger("9ff31a8134f41b330191169ebb56b32c039d656331bedfe4ad6af37ea1d92fd2abda7a614f93bc373b581f12f0db8b488b55793176a7bcfdfc20c4e3998cb79907fb7dd36bc884dcc46f454c7bc138a9c1f4c17fac53131386afce197d26e799f44aa159f957445a7f58486717b3bc984b6fa5d30b48584939609448fd8ffff7", '16');
-    //$exponent   = new Math_BigInteger('3', '10');
 
     // Generate the random value to use as the pre_master_key
     // TODO: alert about not cryptographically strong value
@@ -87,7 +75,6 @@ EOF;*/
     $_SESSION['transmitted_messages'] = $username . $client_random . $master_key . $server_random;
 
     // Load the key into the engine
-    //$rsa->loadKey(array('e' => $exponent, 'modulus' => $public_key, CRYPT_RSA_PUBLIC_FORMAT_RAW) ) ;
     $rsa->loadKey($public_key);
     $rsa->setEncryptionMode(CRYPT_RSA_ENCRYPTION_PKCS1);
 
@@ -103,15 +90,12 @@ EOF;*/
 }
 else {
     define('SENDER_CLIENT', '0x434C4E54');
-    define('SENDER_SERVER', '0x53525652');
 
     define('SUCCESS_URL', 'http://127.0.0.1/~dan/success.php');
     define('FAIL_URL', 'http://127.0.0.1/~dan/failure.php');
 
     $master_key = $_SESSION['master_key'];
     $transmitted_messages = $_SESSION['transmitted_messages'];
-    //$public_key = new Math_BigInteger($_SESSION['public_key'], '16');
-    //$exponent   = new Math_BigInteger($_SESSION['exponent'], '10');
     $public_key = $_SESSION['public_key'];
 
     // returns two arrays, md5 and sha, each with a pad1 and pad2
@@ -120,7 +104,6 @@ else {
     $rsa = new Crypt_RSA();
 
     // Load the key into the engine
-    //$rsa->loadKey(array('e' => $exponent, 'modulus' => $public_key, CRYPT_RSA_PUBLIC_FORMAT_RAW) ) ;
     $rsa->loadKey($public_key, CRYPT_RSA_PUBLIC_FORMAT_PKCS1);
     $rsa->setEncryptionMode(CRYPT_RSA_ENCRYPTION_PKCS1);
 
@@ -128,25 +111,9 @@ else {
     $md5_hash =  md5($master_key . $md5['pad2'] .  md5($transmitted_messages . SENDER_CLIENT . $master_key . $md5['pad1']));
     $sha_hash = sha1($master_key . $sha['pad2'] . sha1($transmitted_messages . SENDER_CLIENT . $master_key . $sha['pad1']));
 
-    //echo $transmitted_messages . SENDER_CLIENT . $master_key . $md5['pad1'];
-    //echo '<br/>';
-
-    //echo $md5_hash;
-    //echo '<br/>';
-    //echo $sha_hash;
-    //echo '<br/>';
-
     // TODO: change to $_POST
-    //pack('H*', $_REQUEST['md5']);
     $user_md5 = bin2hex($rsa->decrypt(pack('H*', $_REQUEST['md5'])));
     $user_sha = bin2hex($rsa->decrypt(pack('H*', $_REQUEST['sha'])));
-    //$user_hashes['md5'] = $rsa->decrypt($user_hashes['md5']);
-    //$user_hashes['sha'] = $rsa->decrypt($user_hashes['sha']);
-    //$user_hashes = json_decode($_REQUEST['response']);
-    //echo $user_md5;
-    //echo '<br/>';
-    //echo $user_sha;
-    //echo '<br/>';
 
     // If the hashes match then set the successful login session key
     if ($md5_hash === $user_md5 && $sha_hash === $user_sha) {
