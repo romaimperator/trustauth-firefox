@@ -14,8 +14,19 @@
   <script type="application/javascript" src="chrome://foamicator/content/rsa2.js"/>
   <script type="application/javascript" src="chrome://foamicator/content/crypto-md5.js"/>
   <script type="application/javascript" src="chrome://foamicator/content/crypto-sha1.js"/>-->
-  <script type="application/javascript" src="chrome://foamicator/content/pki.js"/>
+  <script type="application/javascript" src="chrome://browser/content/utilityOverlay.js"/>
+  <script type="application/javascript" src="chrome://foamicator/content/jsbn.js"/>
+  <script type="application/javascript" src="chrome://foamicator/content/aes.js"/>
+  <script type="application/javascript" src="chrome://foamicator/content/asn1.js"/>
+  <script type="application/javascript" src="chrome://foamicator/content/md5.js"/>
+  <script type="application/javascript" src="chrome://foamicator/content/sha1.js"/>
+  <script type="application/javascript" src="chrome://foamicator/content/sha256.js"/>
+  <script type="application/javascript" src="chrome://foamicator/content/oids.js"/>
+  <script type="application/javascript" src="chrome://foamicator/content/util.js"/>
+  <script type="application/javascript" src="chrome://foamicator/content/prng.js"/>
+  <script type="application/javascript" src="chrome://foamicator/content/random.js"/>
   <script type="application/javascript" src="chrome://foamicator/content/rsa.js"/>
+  <script type="application/javascript" src="chrome://foamicator/content/pki.js"/>
   <script type="application/javascript" src="chrome://foamicator/content/foamicator.js"/>
 
   <statusbar id="status-bar">
