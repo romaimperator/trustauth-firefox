@@ -1,11 +1,7 @@
 var Foamicator = {
-  RANDOM_LENGTH: function() {
-    return 28; // in bytes
-  },
+  RANDOM_LENGTH: 28, // in bytes
 
-  SENDER_CLIENT: function() {
-    return '0x434C4E54';
-  },
+  SENDER_CLIENT: '0x434C4E54',
 
   generate_padding: function() {
     var pad1_char = '36';
