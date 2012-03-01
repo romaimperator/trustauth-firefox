@@ -19,12 +19,6 @@ var Foamicator = {
     this.initialized = true;
     this.logged_in = false;
 
-    // Create the RSA object
-    this.rsakey = new RSAKey();
-    this.secure_random = new SecureRandom();
-
-    rng_seed_time();
-
     // Fetch the preferences for the addon
     this.prefs = Components.classes["@mozilla.org/preferences-service;1"]
                     .getService(Components.interfaces.nsIPrefService).getBranch("extensions.foamicator.");
@@ -63,7 +57,7 @@ var Foamicator = {
 
   show: function() {
     //alert(Foamicator.prefs.getCharPref("e"));
-    alert(this.rsakey.decrypt('49c6b5ad967786f97d68a50026870d1967304ad12e5aba86cc6aaec9d0c39618cca6b58032e8c3704f1a0c75412b2ab8d8768acd95c931fbc17e3f1636da3ff17132eb722f3507f7a9525b954d433b945ed7a471a48e10c69ee7f1b43bfd83350afa77c0238d59d397b0c3be82a5fb243f9339bad79126510636d08b24951301'));
+    //alert(this.rsakey.decrypt('49c6b5ad967786f97d68a50026870d1967304ad12e5aba86cc6aaec9d0c39618cca6b58032e8c3704f1a0c75412b2ab8d8768acd95c931fbc17e3f1636da3ff17132eb722f3507f7a9525b954d433b945ed7a471a48e10c69ee7f1b43bfd83350afa77c0238d59d397b0c3be82a5fb243f9339bad79126510636d08b24951301'));
   },
 
   login: function (event) {
@@ -76,7 +70,10 @@ var Foamicator = {
     var username = this.prefs.getCharPref("username");
 
     // Generate random data
-    var client_random = (new Date()).getTime() + (new BigInteger(this.RANDOM_LENGTH(), this.secure_random)).toString(16);
+    var byte_buffer = forge.util.createBuffer();
+    byte_buffer.putInt32((new Date()).getTime());
+    byte_buffer.putBytes(forge.random.getBytes(this.RANDOM_LENGTH));
+    var client_random = byte_buffer.toHex();
 
     var foam = this;
 
@@ -85,27 +82,33 @@ var Foamicator = {
     // Send the username to the the url specified and listen for the encrypted pre_master_key
     jQuery.post("http://127.0.0.1/~dan/" + auth_url, { username: username, random: client_random },
       function(data) {
+        //foam.log('request returned');
         // Now that we have received the server response, decrypt the pre_master_key
-        var pre_master_key = foam.rsakey.decrypt(data['key']);
-        var server_random  = foam.rsakey.decrypt(data['random']);
+        var pre_master_key = foam.private_key.decrypt(forge.util.hexToBytes(data['key']));
+        //foam.log('done with pre_master_key');
+        var server_random  = foam.private_key.decrypt(forge.util.hexToBytes(data['random']));
+        //foam.log('after decryption');
 
         // Now we need to generate the master key
         var master_key = foam.calculate_master_key(pre_master_key, client_random, server_random);
-        foam.log('master_key: ' + master_key);
+        //foam.log('master_key: ' + master_key);
 
         // Generate the validation hashes to return to the server
         transmitted_messages = transmitted_messages + master_key + server_random;
+        var padding = foam.generate_padding();
+        //foam.log('first md5: ' + transmitted_messages + foam.SENDER_CLIENT + master_key + padding['md5']['pad1']);
         var hashes = foam.calculate_hashes(master_key, client_random, server_random, transmitted_messages);
-        foam.log('md5: ' + hashes['md5']);
-        foam.log('sha: ' + hashes['sha']);
-        foam.log('hashes: ' + JSON.stringify(hashes, null));
-        var encrypted_hashes = foam.rsakey.doPrivate(JSON.stringify(hashes, null));
-        foam.log(encrypted_hashes);
-        jQuery.post("http://127.0.0.1/~dan/" + auth_url, { response: encrypted_hashes },
+        //foam.log('md5: ' + hashes['md5']);
+        //foam.log('sha: ' + hashes['sha']);
+        hashes['md5'] = forge.util.bytesToHex(foam.private_key.encrypt(forge.util.hexToBytes(hashes['md5'])));
+        hashes['sha'] = forge.util.bytesToHex(foam.private_key.encrypt(forge.util.hexToBytes(hashes['sha'])));
+        //foam.log('hashes: ' + JSON.stringify(hashes, null));
+        jQuery.post("http://127.0.0.1/~dan/" + auth_url, { md5: hashes['md5'], sha: hashes['sha'] },
           function(data) {
-            var redirect_url = foam.rsakey.decrypt(data['redirect_url']);
+            var redirect_url = foam.private_key.decrypt(forge.util.hexToBytes(data['redirect_url']));
             foam.log(redirect_url);
             foam.logged_in = true;
+            openUILinkIn(redirect_url, 'current');
         }, 'json').fail(function(msg, textStatus, errorThrown) { alert('second' + msg.status + ";" + msg.statusText + ";" + msg.responseXML); });
 
     }, 'json').fail(function(msg, textStatus, errorThrown) { alert(msg.status + ";" + msg.statusText + ";" + msg.responseXML); });
@@ -119,8 +122,8 @@ var Foamicator = {
 
   calculate_hashes: function(master_key, client_random, server_random, transmitted_messages) {
     var padding = this.generate_padding();
-    var md5 = this.md5(master_key + padding['md5']['pad2'] + this.md5(transmitted_messages + this.SENDER_CLIENT() + master_key + padding['md5']['pad1']));
-    var sha = this.sha1(master_key + padding['sha']['pad2'] + this.sha1(transmitted_messages + this.SENDER_CLIENT() + master_key + padding['sha']['pad1']));
+    var md5 = this.md5(master_key + padding['md5']['pad2'] + this.md5(transmitted_messages + this.SENDER_CLIENT + master_key + padding['md5']['pad1']));
+    var sha = this.sha1(master_key + padding['sha']['pad2'] + this.sha1(transmitted_messages + this.SENDER_CLIENT + master_key + padding['sha']['pad1']));
     return { md5: md5, sha: sha };
   },
 
@@ -187,32 +190,20 @@ var Foamicator = {
     var exponent   = this.prefs.getIntPref("exponent");
 
     // Generate the key
-    this.rsakey.generate(key_length, exponent.toString());
+    var keys = forge.pki.rsa.generateKeyPair(key_length, exponent);
+
+    this.public_key  = keys['publicKey'];
+    this.private_key = keys['privateKey'];
 
     // Store the values generated
-    this.prefs.setCharPref("priv_key", this.rsakey.d.toString(16));
-    this.prefs.setCharPref("pub_key", this.rsakey.n.toString(16));
-    this.prefs.setCharPref("e", this.rsakey.e.toString(16));
-    this.prefs.setCharPref("p", this.rsakey.p.toString(16));
-    this.prefs.setCharPref("q", this.rsakey.q.toString(16));
-    this.prefs.setCharPref("dmp1", this.rsakey.dmp1.toString(16));
-    this.prefs.setCharPref("dmq1", this.rsakey.dmq1.toString(16));
-    this.prefs.setCharPref("coeff", this.rsakey.coeff.toString(16));
+    this.prefs.setCharPref("pub_key", forge.pki.publicKeyToPem(this.public_key));
+    this.prefs.setCharPref("priv_key", forge.pki.privateKeyToPem(this.private_key));
   },
 
   // This function loads the keys from the preferences
   load_keys: function() {
-    var n     = this.prefs.getCharPref("pub_key");
-    var e     = this.prefs.getCharPref("e");
-    var d     = this.prefs.getCharPref("priv_key");
-    var p     = this.prefs.getCharPref("p");
-    var q     = this.prefs.getCharPref("q");
-    var dmp1  = this.prefs.getCharPref("dmp1");
-    var dmq1  = this.prefs.getCharPref("dmq1");
-    var coeff = this.prefs.getCharPref("coeff");
-
-    // Set the key
-    this.rsakey.setPrivateEx(n, e, d, p, q, dmp1, dmq1, coeff);
+    this.private_key = forge.pki.privateKeyFromPem(this.prefs.getCharPref("priv_key"));
+    this.public_key  = forge.pki.publicKeyFromPem(this.prefs.getCharPref("pub_key"));
   },
 };
 
