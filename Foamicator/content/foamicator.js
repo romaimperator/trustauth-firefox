@@ -4,20 +4,12 @@ var Foamicator = {
   SENDER_CLIENT: '0x434C4E54',
 
   generate_padding: function() {
-    var pad1_char = '36';
-    var pad2_char = '5c';
-    var pad1_md5  = '0x';
-    var pad2_md5  = '0x';
-    var pad1_sha  = '';
-    var pad2_sha  = '';
-    for (i = 0; i < 48; i++) {
-      pad1_md5 += pad1_char;
-      pad2_md5 += pad2_char;
-      if (i === 40) {
-        pad1_sha = pad1_md5;
-        pad2_sha = pad2_md5;
-      }
-    }
+    var pad1_md5 = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x36), 48));
+    var pad2_md5 = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x5c), 48));
+    var pad1_sha = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x36), 40));
+    var pad2_sha = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x5c), 40));
+    //this.log('md5 pad1: ' + pad1_md5 + ' md5 pad2: ' + pad2_md5);
+    //this.log('sha pad1: ' + pad1_sha + ' sha pad2: ' + pad2_sha);
     return { md5: { pad1: pad1_md5, pad2: pad2_md5 },
              sha: { pad1: pad1_sha, pad2: pad2_sha }};
   },
