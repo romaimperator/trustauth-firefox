@@ -4,16 +4,6 @@
 <overlay id="foamicate-overlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
   <script type="application/javascript" src="chrome://foamicator/content/jquery-1.7.1.min.js"/>
-  <!--<script type="application/javascript" src="chrome://foamicator/content/jquery.jcryption.min.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/base64.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/jsbn.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/jsbn2.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/prng4.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/rng.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/rsa.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/rsa2.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/crypto-md5.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/crypto-sha1.js"/>-->
   <script type="application/javascript" src="chrome://browser/content/utilityOverlay.js"/>
   <script type="application/javascript" src="chrome://foamicator/content/jsbn.js"/>
   <script type="application/javascript" src="chrome://foamicator/content/aes.js"/>
