@@ -3,6 +3,10 @@ include('Crypt/RSA.php');
 
 session_start();
 
+if ( ! isset($_SESSION['authenticating']) ) {
+    $_SESSION['authenticating'] = false;
+}
+
 // Check if the logged in session variable is set. If it's not initialize with false.
 if ( ! isset($_SESSION['logged_in'])) {
     $_SESSION['logged_in'] = false;
@@ -36,7 +40,9 @@ function generate_padding() {
     );
 }
 
-if ( ! isset($_SESSION['master_key'])) {
+if ( ! $_SESSION['authenticating']) {
+    $_SESSION['authenticating'] = true;
+
     define('PRE_MASTER_KEY_LENGTH', 48); // in bytes
     define('SERVER_RANDOM_LENGTH', 28);  // in bytes
 
@@ -119,6 +125,7 @@ else {
     if ($md5_hash === $user_md5 && $sha_hash === $user_sha) {
         unset($_SESSION['master_key']);
         unset($_SESSION['transmitted_messages']);
+        unset($_SESSION['public_key']);
 
         $_SESSION['logged_in'] = true;
 
@@ -127,6 +134,8 @@ else {
     else {
         echo json_encode(array('redirect_url' => bin2hex($rsa->encrypt(FAIL_URL))));
     }
+
+    $_SESSION['authenticating'] = false;
 }
 
 ?>

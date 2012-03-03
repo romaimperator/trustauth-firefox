@@ -17,7 +17,6 @@ var Foamicator = {
   on_load: function() {
     // initialization code
     this.initialized = true;
-    this.logged_in = false;
 
     // Fetch the preferences for the addon
     this.prefs = Components.classes["@mozilla.org/preferences-service;1"]
@@ -52,9 +51,6 @@ var Foamicator = {
   },
 
   login: function (event) {
-    if (this.logged_in === true) {
-      return;
-    }
     // Fetch the URL to authenticate with from the page.
     var auth_url = jQuery('form > input:hidden#foamicate_url', content.document).val();
 
@@ -98,7 +94,6 @@ var Foamicator = {
           function(data) {
             var redirect_url = foam.private_key.decrypt(forge.util.hexToBytes(data['redirect_url']));
             foam.log(redirect_url);
-            foam.logged_in = true;
             openUILinkIn(redirect_url, 'current');
         }, 'json').fail(function(msg, textStatus, errorThrown) { alert('second' + msg.status + ";" + msg.statusText + ";" + msg.responseXML); });
 
