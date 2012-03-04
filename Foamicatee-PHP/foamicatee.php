@@ -132,7 +132,7 @@ class Foamicatee
 {
     // These status codes are used to let Foamicator (the addon) know
     // what happened.
-    const status = array(
+    protected static $status = array(
         'auth'          => 0,
         'auth_fail'     => 1,
         'username_fail' => 2,
@@ -143,7 +143,7 @@ class Foamicatee
     const SERVER_RANDOM_LENGTH     = 28;  // in bytes
     const SENDER_CLIENT            = '0x434C4E54';
 
-    const padding = array(
+    protected static $padding = array(
         'md5' => array(
             'pad1' => '363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636',
             'pad2' => '5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c',
@@ -192,7 +192,7 @@ class Foamicatee
     public static function invalid_username() {
         return array(
             'status' => true,
-            'json'   => json_encode(array('status' => Foamicatee::status['username_fail'], 'error' => "Username does not exist.")),
+            'json'   => json_encode(array('status' => Foamicatee::$status['username_fail'], 'error' => "Username does not exist.")),
         );
     }
 
@@ -214,8 +214,8 @@ class Foamicatee
         $rsa->loadKey($user['public_key']);
         $rsa->setEncryptionMode(CRYPT_RSA_ENCRYPTION_PKCS1);
 
-        $pre_master_secret = $this->get_pre_master_secret();
-        $server_random     = $this->get_server_random();
+        $pre_master_secret = Foamicatee::get_pre_master_secret();
+        $server_random     = Foamicatee::get_server_random();
 
         // Encrypt the pre_master_secret and convert it to hex
         $encrypted_secret = bin2hex($rsa->encrypt($pre_master_secret));
@@ -224,8 +224,8 @@ class Foamicatee
         // Encode the encrypted secret as json
         return array(
             'status' => true,
-            'json'   => json_encode(array('secret' => $encrypted_secret, 'random' => $server_random, 'status' => Foamicatee::status['auth'])),
-            'server' => array('random' => $server_random, 'pre_master_secret' => $pre_master_secret);
+            'json'   => json_encode(array('secret' => $encrypted_secret, 'random' => $server_random, 'status' => Foamicatee::$status['auth'])),
+            'server' => array('random' => $server_random, 'pre_master_secret' => $pre_master_secret),
         );
     }
 
@@ -259,24 +259,24 @@ class Foamicatee
         $user_sha = bin2hex($rsa->decrypt(pack('H*', $user['sha'])));
 
         // Generate the master secret
-        $master_secret        = $this->get_master_secret($server['pre_master_secret'], $user['random'], $server['random']);
-        $transmitted_messages = $this->get_transmitted_messages($user['username'], $user['random'], $server['random'], $master_secret);
+        $master_secret        = Foamicateee::get_master_secret($server['pre_master_secret'], $user['random'], $server['random']);
+        $transmitted_messages = Foamicateee::get_transmitted_messages($user['username'], $user['random'], $server['random'], $master_secret);
 
         // Calculate the expected hashes from the client
-        $md5_hash = $this->get_md5_hash($master_secret, $client['random'], $server['random'], $transmitted_messages);
-        $sha_hash = $this->get_sha_hash($master_secret, $client['random'], $server['random'], $transmitted_messages);
+        $md5_hash = Foamicateee::get_md5_hash($master_secret, $client['random'], $server['random'], $transmitted_messages);
+        $sha_hash = Foamicateee::get_sha_hash($master_secret, $client['random'], $server['random'], $transmitted_messages);
 
         // If the hashes match then set the successful login session secret
         if ($md5_hash === $user_md5 && $sha_hash === $user_sha) {
             return array(
                 'status' => true,
-                'json' => json_encode(array('url' => $success_url, 'status' => Foamicatee::status['logged_in']))),
+                'json' => json_encode(array('url' => $success_url, 'status' => Foamicatee::$status['logged_in'])),
             );
         }
         else {
             return array(
                 'status' => false,
-                'json' => json_encode(array('url' => $fail_url, 'status' => Foamicatee::status['auth_fail'], 'error' => 'Failed to authenticate.')),
+                'json' => json_encode(array('url' => $fail_url, 'status' => Foamicatee::$status['auth_fail'], 'error' => 'Failed to authenticate.')),
             );
         }
     }
@@ -341,7 +341,7 @@ class Foamicatee
      */
     protected static function get_pre_master_secret() {
         // TODO: alert about not cryptographically strong value
-        return bin2hex(openssl_random_pseudo_bytes(PRE_MASTER_SECRET_LENGTH));
+        return bin2hex(openssl_random_pseudo_bytes(Foamicatee::PRE_MASTER_SECRET_LENGTH));
     }
 
     /*
