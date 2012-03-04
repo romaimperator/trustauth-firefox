@@ -56,7 +56,7 @@ var Foamicator = {
 
   login: function (event) {
     // Fetch the URL to authenticate with from the page.
-    var auth_url = jQuery('form > input:hidden#foamicate_url', content.document).val();
+    var auth_url = jQuery('input:hidden#foamicate_url', content.document).val();
 
     var username = this.prefs.getCharPref("username");
 
@@ -102,6 +102,10 @@ var Foamicator = {
         }, 'json').fail(function(msg, textStatus, errorThrown) { alert('second' + msg.status + ";" + msg.statusText + ";" + msg.responseXML); });
 
     }, 'json').fail(function(msg, textStatus, errorThrown) { alert(msg.status + ";" + msg.statusText + ";" + msg.responseXML); });
+  },
+
+  isset: function(variable) {
+      return typeof(variable) != "undefined" && variable !== null;
   },
 
   log: function(aMessage) {
