@@ -4,6 +4,11 @@
  * authenticate with a client user using the Foamicator addon. The usage
  * of this library is fairly simple.
  *
+ * Dependencies:
+ *
+ * This class depends on the Crypt/RSA phpseclib found at
+ *     http://phpseclib.sourceforge.net/documentation/index.html
+ *
  * There are two main structures used with this API. First is the user
  * array which consists of the following information:
  *      $user = array(
@@ -76,6 +81,49 @@
  * NOTE:
  *    If either function did not receive the required parameters they
  *    will return false.
+ *
+ * NOTE:
+ *    If there was an error finding the username, a json return for
+ *    Foamicator can be obtained by calling invalid_username().
+ *
+ * SEE ALSO:
+ *    For an example implementation see foamicate_auth.php
+ *
+ *
+ *
+ *
+ * Implementation details
+ *
+ * There are currently 4 status codes. They are:
+ *       'auth'          => 0, // Returned with the challenge to indicate
+ *                             // the authentication is in progress.
+ *       'auth_fail'     => 1, // Returned when the authentication
+ *                             // failed.
+ *       'username_fail' => 2, // Returned when the username isn't found
+ *                             // on the server.
+ *       'logged_in'     => 3, // Returned if the login was successful.
+ *
+ * The general structure of the json array is as follows:
+ *
+ *      'json' => array(
+ *          'status' => // the status code indicating what kind of
+ *                      // message this is
+ *
+ *          // These are required for _fail messages
+ *          'error'  => // the error message to display to the user
+ *
+ *          // These are included in the auth message
+ *          'secret' => // the encrypted pre_master_secret
+ *          'random' => // the server's random value
+ *
+ *          // These are incldued in the logged_in and auth_fail
+ *          // messages
+ *          'url' => // a url to redirect the user's broswer to
+ *      )
+ *
+ * The json returned with the two fail messages should also include an
+ * error key with a string to display to the user indicating the
+ * problem.
  */
 
 class Foamicatee
@@ -105,6 +153,7 @@ class Foamicatee
 
     /*
      * This chunk of code creates the padding from binary and converts it to hex.
+     *
      * @deprecated
      * @return array of the paddings
      */
@@ -134,6 +183,7 @@ class Foamicatee
 
     /*
      * Generates the challenge message for the client addon.
+     *
      * @param user the array of user info, username, public key, random
      * @returns array of status, json return message and the server values
      *     which will be needed later
@@ -168,9 +218,12 @@ class Foamicatee
 
     /*
      * Checks to see if the server hash matches the user supplied hash.
+     *
      * @param $user array with the md5 hash, the sha hash, the user
-     * random, the public_key, and the username
+     *      random, the public_key, and the username
      * @param $server array with the pre_master_secret and the random value
+     * @param success_url the url to tell the user to redirect to upon successful authentication
+     * @param fail_url the url to tell the user to redirect to upon failed authentication
      * @return array with the status and the json return message
      */
     public static function authenticate($user, $server) {
@@ -214,10 +267,11 @@ class Foamicatee
 
     /*
      * Calculates the md5 hash to expect from the client.
+     *
      * @param client_random the client's random value
      * @param server_random the server's random value
      * @param transmitted_messages the username, client_random,
-     * master_secret, and server_random concatenated in this order
+     *      master_secret, and server_random concatenated in this order
      * @return the md5 hash
      */
     protected static function get_md5_hash($master_secret, $client_random, $server_random, $transmitted_messages) {
@@ -226,10 +280,11 @@ class Foamicatee
 
     /*
      * Calculates the md5 hash to expect from the client.
+     *
      * @param client_random the client's random value
      * @param server_random the server's random value
      * @param transmitted_messages the username, client_random,
-     * master_secret, and server_random concatenated in this order
+     *      master_secret, and server_random concatenated in this order
      * @return the md5 hash
      */
     protected static function get_sha_hash($master_secret, $client_random, $server_random, $transmitted_messages) {
@@ -238,6 +293,7 @@ class Foamicatee
 
     /*
      * Calculate the master secret using server.random and client.random.
+     *
      * @param pre_master_secret the pre_master_secret to use
      * @param client_random  the random value from the client
      * @param server_random  the random value from the server
@@ -251,6 +307,7 @@ class Foamicatee
 
     /*
      * Creates the tranmitted_messages value.
+     *
      * @param username the username
      * @param user_random the random value of the user
      * @param server_random the random value of the server
@@ -263,6 +320,7 @@ class Foamicatee
 
     /*
      * Generates a pre_master_secret.
+     *
      * @return the pre_master_secret
      */
     protected static function get_pre_master_secret() {
@@ -274,6 +332,7 @@ class Foamicatee
      * Generates the server's random value. The SERVER_RANDOM_LENGTH
      * controls how long in bytes the random portion of the pre_master_secret
      * is.
+     *
      * @return server's random value
      */
     protected static function get_server_random() {
