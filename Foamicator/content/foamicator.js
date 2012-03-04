@@ -50,6 +50,10 @@ var Foamicator = {
     Services.obs.addObserver(observer, "addon-options-displayed", false);
   },
 
+  submit_public_key: function() {
+      jQuery('textarea#foamicate_public_key', content.document).val(this.prefs.getCharPref('pub_key'));
+  },
+
   login: function (event) {
     // Fetch the URL to authenticate with from the page.
     var auth_url = jQuery('form > input:hidden#foamicate_url', content.document).val();

@@ -22,6 +22,7 @@
   <statusbar id="status-bar">
       <statusbarpanel id="foamicator-panel" label="&menutitle;" >
           <button label="Login" oncommand="Foamicator.login(event);" />
+          <button label="Submit Key" oncommand="Foamicator.submit_public_key();" />
       </statusbarpanel>
   </statusbar>
 
