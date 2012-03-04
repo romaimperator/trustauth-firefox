@@ -37,7 +37,7 @@
  * 1. To get the challenge message to reply to the Foamicator addon with
  *    call the get_challenge function with the user array like so:
  *
- *      $result = Foamicate::get_challenge(array(
+ *      $result = Foamicatee::get_challenge(array(
  *          'username'   => $username,
  *          'random'     => $user_random,
  *          'public_key' => $public_key,
@@ -62,7 +62,7 @@
  *
  *    $user['md5'] = $_POST['hashes']['md5'];
  *    $uesr['sha'] = $_POST['hashes']['sha'];
- *    $result = Foamicate::authenticate($user, $result['server']);
+ *    $result = Foamicatee::authenticate($user, $result['server']);
  *
  *    The function returns an array similar to the first:
  *
@@ -126,19 +126,22 @@
  * problem.
  */
 
+require_once('Crypt/RSA.php');
+
 class Foamicatee
 {
     // These status codes are used to let Foamicator (the addon) know
     // what happened.
     const status = array(
-        'auth' => 0,
-        'auth_fail' => 1,
+        'auth'          => 0,
+        'auth_fail'     => 1,
         'username_fail' => 2,
-        'logged_in' => 3,
+        'logged_in'     => 3,
     );
 
     const PRE_MASTER_SECRET_LENGTH = 48; // in bytes
     const SERVER_RANDOM_LENGTH     = 28;  // in bytes
+    const SENDER_CLIENT            = '0x434C4E54';
 
     const padding = array(
         'md5' => array(
@@ -207,6 +210,7 @@ class Foamicatee
         }
 
         // Load the key into the engine
+        $rsa = new Crypt_RSA();
         $rsa->loadKey($user['public_key']);
         $rsa->setEncryptionMode(CRYPT_RSA_ENCRYPTION_PKCS1);
 
@@ -220,7 +224,7 @@ class Foamicatee
         // Encode the encrypted secret as json
         return array(
             'status' => true,
-            'json'   => json_encode(array('secret' => $encrypted_secret, 'random' => $server_random, 'status' => Foamicate::status['auth'])),
+            'json'   => json_encode(array('secret' => $encrypted_secret, 'random' => $server_random, 'status' => Foamicatee::status['auth'])),
             'server' => array('random' => $server_random, 'pre_master_secret' => $pre_master_secret);
         );
     }
@@ -238,7 +242,7 @@ class Foamicatee
      * @param fail_url the url to tell the user to redirect to upon failed authentication
      * @return array with the status and the json return message
      */
-    public static function authenticate($user, $server) {
+    public static function authenticate($user, $server, $success_url, $fail_url) {
         // Return error if any required parameter is missing
         if ( ! isset($user['random']) || ! isset($user['public_key']) || ! isset($user['username']) || ! isset($user['md5']) || ! isset($user['sha']) ||
             ! isset($server['pre_master_secret']) || ! isset($server['random'])) {
@@ -266,13 +270,13 @@ class Foamicatee
         if ($md5_hash === $user_md5 && $sha_hash === $user_sha) {
             return array(
                 'status' => true,
-                'json' => json_encode(array('url' => SUCCESS_URL, 'status' => Foamicate::status['logged_in']))),
+                'json' => json_encode(array('url' => $success_url, 'status' => Foamicatee::status['logged_in']))),
             );
         }
         else {
             return array(
                 'status' => false,
-                'json' => json_encode(array('url' => FAIL_URL, 'status' => Foamicate::status['auth_fail'], 'error' => 'Failed to authenticate.')),
+                'json' => json_encode(array('url' => $fail_url, 'status' => Foamicatee::status['auth_fail'], 'error' => 'Failed to authenticate.')),
             );
         }
     }
@@ -349,7 +353,7 @@ class Foamicatee
      */
     protected static function get_server_random() {
         $current_time = new Math_BigInteger(microtime(true) * 10000, '10');
-        return bin2hex($current_time->toBytes()) . bin2hex(openssl_random_pseudo_bytes(Foamicate::SERVER_RANDOM_LENGTH));
+        return bin2hex($current_time->toBytes()) . bin2hex(openssl_random_pseudo_bytes(Foamicatee::SERVER_RANDOM_LENGTH));
     }
 }
 
