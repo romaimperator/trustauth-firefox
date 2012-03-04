@@ -16,9 +16,9 @@ if ( ! isset($_SESSION['logged_in'])) {
     $_SESSION['logged_in'] = false;
 }
 
-function fetch_user_info($username) {
+function fetch_user_info($public_key) {
     $mysql_link = mysql_connect(':/var/mysql/mysql.sock', 'root');
-    $query = sprintf("SELECT * FROM users WHERE username='%s'", mysql_real_escape_string($username, $mysql_link));
+    $query = sprintf("SELECT * FROM users WHERE public_key='%s'", mysql_real_escape_string($public_key, $mysql_link));
 
     mysql_select_db('foamicate');
 
@@ -40,20 +40,17 @@ if ( ! $_SESSION['authenticating']) {
 
     // First thing to do is grab the username out of the post variables.
     // TODO: change from GET to POST
-    $username = $_REQUEST['username'];
-    $user = fetch_user_info($username);
+    //$user = fetch_user_info($username);
+    $user = array(
+        'public_key' => $_REQUEST['public_key'],
+        'random'     => $_REQUEST['random'],
+    );
 
-    if ( ! $user) {
-        $result = Foamicatee::invalid_username();
-    }
-    else {
-        $user['random'] = $_REQUEST['random'];
+    $result = Foamicatee::get_challenge($user);
 
-        $result = Foamicatee::get_challenge($user);
+    $_SESSION['server'] = $result['server'];
+    $_SESSION['user']   = $user;
 
-        $_SESSION['server'] = $result['server'];
-        $_SESSION['user']   = $user;
-    }
     echo $result['json'];
 }
 else {
