@@ -182,6 +182,18 @@ class Foamicatee
     }
 
     /*
+     * Generates the json string to return if the username isn't found.
+     *
+     * @return array of status and the json encoded string
+     */
+    public static function invalid_username() {
+        return array(
+            'status' => true,
+            'json'   => json_encode(array('status' => Foamicatee::status['username_fail'], 'error' => "Username does not exist.")),
+        );
+    }
+
+    /*
      * Generates the challenge message for the client addon.
      *
      * @param user the array of user info, username, public key, random
