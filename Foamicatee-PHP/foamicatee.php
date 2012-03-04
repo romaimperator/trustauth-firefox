@@ -12,7 +12,6 @@
  * There are two main structures used with this API. First is the user
  * array which consists of the following information:
  *      $user = array(
- *          'username'   => // the username
  *          'random'     => // the provided random value
  *          'public_key' => // the public key associated with this user
  *
@@ -38,7 +37,6 @@
  *    call the get_challenge function with the user array like so:
  *
  *      $result = Foamicatee::get_challenge(array(
- *          'username'   => $username,
  *          'random'     => $user_random,
  *          'public_key' => $public_key,
  *      ));
@@ -82,10 +80,6 @@
  *    If either function did not receive the required parameters they
  *    will return false.
  *
- * NOTE:
- *    If there was an error finding the username, a json return for
- *    Foamicator can be obtained by calling invalid_username().
- *
  * SEE ALSO:
  *    For an example implementation see foamicate_auth.php
  *
@@ -99,9 +93,7 @@
  *                             // the authentication is in progress.
  *       'auth_fail'     => 1, // Returned when the authentication
  *                             // failed.
- *       'username_fail' => 2, // Returned when the username isn't found
- *                             // on the server.
- *       'logged_in'     => 3, // Returned if the login was successful.
+ *       'logged_in'     => 2, // Returned if the login was successful.
  *
  * The general structure of the json array is as follows:
  *
@@ -135,8 +127,7 @@ class Foamicatee
     protected static $status = array(
         'auth'          => 0,
         'auth_fail'     => 1,
-        'username_fail' => 2,
-        'logged_in'     => 3,
+        'logged_in'     => 2,
     );
 
     const PRE_MASTER_SECRET_LENGTH = 48; // in bytes
@@ -185,27 +176,15 @@ class Foamicatee
     }
 
     /*
-     * Generates the json string to return if the username isn't found.
-     *
-     * @return array of status and the json encoded string
-     */
-    public static function invalid_username() {
-        return array(
-            'status' => true,
-            'json'   => json_encode(array('status' => Foamicatee::$status['username_fail'], 'error' => "Username does not exist.")),
-        );
-    }
-
-    /*
      * Generates the challenge message for the client addon.
      *
-     * @param user the array of user info, username, public key, random
+     * @param user the array of user info, public key, random
      * @returns array of status, json return message and the server values
      *     which will be needed later
      */
     public static function get_challenge($user) {
         // Return error if any required parameter is missing
-        if ( ! isset($user['random']) || ! isset($user['username']) || ! isset($user['public_key'])) {
+        if ( ! isset($user['random']) || ! isset($user['public_key'])) {
             return false;
         }
 
@@ -236,7 +215,7 @@ class Foamicatee
      * Checks to see if the server hash matches the user supplied hash.
      *
      * @param $user array with the md5 hash, the sha hash, the user
-     *      random, the public_key, and the username
+     *      random, the public_key
      * @param $server array with the pre_master_secret and the random value
      * @param success_url the url to tell the user to redirect to upon successful authentication
      * @param fail_url the url to tell the user to redirect to upon failed authentication
@@ -244,7 +223,7 @@ class Foamicatee
      */
     public static function authenticate($user, $server, $success_url, $fail_url) {
         // Return error if any required parameter is missing
-        if ( ! isset($user['random']) || ! isset($user['public_key']) || ! isset($user['username']) || ! isset($user['md5']) || ! isset($user['sha']) ||
+        if ( ! isset($user['random']) || ! isset($user['public_key']) || ! isset($user['md5']) || ! isset($user['sha']) ||
             ! isset($server['pre_master_secret']) || ! isset($server['random'])) {
             return false;
         }
@@ -260,7 +239,7 @@ class Foamicatee
 
         // Generate the master secret
         $master_secret        = Foamicateee::get_master_secret($server['pre_master_secret'], $user['random'], $server['random']);
-        $transmitted_messages = Foamicateee::get_transmitted_messages($user['username'], $user['random'], $server['random'], $master_secret);
+        $transmitted_messages = Foamicateee::get_transmitted_messages($user['random'], $server['random'], $master_secret);
 
         // Calculate the expected hashes from the client
         $md5_hash = Foamicateee::get_md5_hash($master_secret, $client['random'], $server['random'], $transmitted_messages);
@@ -286,7 +265,7 @@ class Foamicatee
      *
      * @param client_random the client's random value
      * @param server_random the server's random value
-     * @param transmitted_messages the username, client_random,
+     * @param transmitted_messages the client_random,
      *      master_secret, and server_random concatenated in this order
      * @return the md5 hash
      */
@@ -299,7 +278,7 @@ class Foamicatee
      *
      * @param client_random the client's random value
      * @param server_random the server's random value
-     * @param transmitted_messages the username, client_random,
+     * @param transmitted_messages the client_random,
      *      master_secret, and server_random concatenated in this order
      * @return the md5 hash
      */
@@ -324,14 +303,13 @@ class Foamicatee
     /*
      * Creates the tranmitted_messages value.
      *
-     * @param username the username
      * @param user_random the random value of the user
      * @param server_random the random value of the server
      * @param master_secret the master secret
      * @return the value for transmitted_message
      */
-    protected static function get_transmitted_messages($username, $user_random, $server_random, $master_secret) {
-        return $username . $user_random . $master_secret . $server_random;
+    protected static function get_transmitted_messages($user_random, $server_random, $master_secret) {
+        return $user_random . $master_secret . $server_random;
     }
 
     /*
