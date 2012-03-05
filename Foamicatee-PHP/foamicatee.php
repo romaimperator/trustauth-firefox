@@ -134,15 +134,13 @@ class Foamicatee
     const SERVER_RANDOM_LENGTH     = 28;  // in bytes
     const SENDER_CLIENT            = '0x434C4E54';
 
-    protected static $padding = array(
-        'md5' => array(
-            'pad1' => '363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636',
-            'pad2' => '5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c',
-        ),
-        'sha' => array(
-            'pad1' => '36363636363636363636363636363636363636363636363636363636363636363636363636363636',
-            'pad2' => '5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c',
-        ),
+    protected static $md5_pad = array(
+        'pad1' => '363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636',
+        'pad2' => '5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c',
+    );
+    protected static $sha_pad = array(
+        'pad1' => '36363636363636363636363636363636363636363636363636363636363636363636363636363636',
+        'pad2' => '5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c',
     );
 
     /*
@@ -188,6 +186,9 @@ class Foamicatee
             return false;
         }
 
+        $user['public_key'] = Foamicatee::fix_key($user['public_key']);
+
+
         // Load the key into the engine
         $rsa = new Crypt_RSA();
         $rsa->loadKey($user['public_key']);
@@ -203,7 +204,7 @@ class Foamicatee
         // Encode the encrypted secret as json
         return array(
             'status' => true,
-            'json'   => json_encode(array('secret' => $encrypted_secret, 'random' => $server_random, 'status' => Foamicatee::$status['auth'])),
+            'json'   => json_encode(array('secret' => $encrypted_secret, 'random' => $encrypted_random, 'status' => Foamicatee::$status['auth'])),
             'server' => array('random' => $server_random, 'pre_master_secret' => $pre_master_secret),
         );
     }
@@ -228,9 +229,11 @@ class Foamicatee
             return false;
         }
 
+        $user['public_key'] = Foamicatee::fix_key($user['public_key']);
+
         // Load the key into the engine
         $rsa = new Crypt_RSA();
-        $rsa->loadKey($user['public_key'], CRYPT_RSA_PUBLIC_FORMAT_PKCS1);
+        $rsa->loadKey($user['public_key']);
         $rsa->setEncryptionMode(CRYPT_RSA_ENCRYPTION_PKCS1);
 
         // Decrypt the hashes from the client
@@ -238,12 +241,12 @@ class Foamicatee
         $user_sha = bin2hex($rsa->decrypt(pack('H*', $user['sha'])));
 
         // Generate the master secret
-        $master_secret        = Foamicateee::get_master_secret($server['pre_master_secret'], $user['random'], $server['random']);
-        $transmitted_messages = Foamicateee::get_transmitted_messages($user['random'], $server['random'], $master_secret);
+        $master_secret        = Foamicatee::get_master_secret($server['pre_master_secret'], $user['random'], $server['random']);
+        $transmitted_messages = Foamicatee::get_transmitted_messages($user['random'], $master_secret, $server['random']);
 
         // Calculate the expected hashes from the client
-        $md5_hash = Foamicateee::get_md5_hash($master_secret, $client['random'], $server['random'], $transmitted_messages);
-        $sha_hash = Foamicateee::get_sha_hash($master_secret, $client['random'], $server['random'], $transmitted_messages);
+        $md5_hash = Foamicatee::get_md5_hash($master_secret, $user['random'], $server['random'], $transmitted_messages);
+        $sha_hash = Foamicatee::get_sha_hash($master_secret, $user['random'], $server['random'], $transmitted_messages);
 
         // If the hashes match then set the successful login session secret
         if ($md5_hash === $user_md5 && $sha_hash === $user_sha) {
@@ -261,6 +264,22 @@ class Foamicatee
     }
 
     /*
+     * Corrects the format of the public key so that Crypt/RSA won't
+     * freak out.
+     *
+     * @param public_key the key
+     * @return the fixed key
+     */
+    protected static function fix_key($public_key) {
+        $public_key = substr_replace($public_key, '', 0, 26);   // Remove the BEGIN PUBLIC KEY
+        $public_key = substr_replace($public_key, '', -24, 24); // Remove the END PUBLIC KEY
+        $public_key = str_replace(' ', '', $public_key);        // Remove spaces
+        $public_key = str_replace("\r\n", '', $public_key);     // Remove line breaks
+        $public_key = chunk_split($public_key, 64, "\r\n");
+        return "\r\n-----BEGIN PUBLIC KEY-----\r\n" . $public_key . "-----END PUBLIC KEY-----\r\n";
+    }
+
+    /*
      * Calculates the md5 hash to expect from the client.
      *
      * @param client_random the client's random value
@@ -270,7 +289,7 @@ class Foamicatee
      * @return the md5 hash
      */
     protected static function get_md5_hash($master_secret, $client_random, $server_random, $transmitted_messages) {
-        return md5($master_secret . $md5['pad2'] .  md5($transmitted_messages . SENDER_CLIENT . $master_secret . $md5['pad1']));
+        return md5($master_secret . Foamicatee::$md5_pad['pad2'] .  md5($transmitted_messages . Foamicatee::SENDER_CLIENT . $master_secret . Foamicatee::$md5_pad['pad1']));
     }
 
     /*
@@ -283,7 +302,7 @@ class Foamicatee
      * @return the md5 hash
      */
     protected static function get_sha_hash($master_secret, $client_random, $server_random, $transmitted_messages) {
-        return sha1($master_secret . $sha['pad2'] . sha1($transmitted_messages . SENDER_CLIENT . $master_secret . $sha['pad1']));
+        return sha1($master_secret . Foamicatee::$sha_pad['pad2'] . sha1($transmitted_messages . Foamicatee::SENDER_CLIENT . $master_secret . Foamicatee::$sha_pad['pad1']));
     }
 
     /*
@@ -308,7 +327,7 @@ class Foamicatee
      * @param master_secret the master secret
      * @return the value for transmitted_message
      */
-    protected static function get_transmitted_messages($user_random, $server_random, $master_secret) {
+    protected static function get_transmitted_messages($user_random, $master_secret, $server_random) {
         return $user_random . $master_secret . $server_random;
     }
 
