@@ -5,7 +5,6 @@ USE foamicate;
 create table users
 (
 id integer primary key auto_increment,
-username char(50) not null,
 public_key text not null
 ) ENGINE=INNODB;
 
