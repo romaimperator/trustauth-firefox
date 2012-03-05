@@ -12,7 +12,6 @@
  * There are two main structures used with this API. First is the user
  * array which consists of the following information:
  *      $user = array(
- *          'username'   => // the username
  *          'random'     => // the provided random value
  *          'public_key' => // the public key associated with this user
  *
@@ -38,7 +37,6 @@
  *    call the get_challenge function with the user array like so:
  *
  *      $result = Foamicatee::get_challenge(array(
- *          'username'   => $username,
  *          'random'     => $user_random,
  *          'public_key' => $public_key,
  *      ));
@@ -82,10 +80,6 @@
  *    If either function did not receive the required parameters they
  *    will return false.
  *
- * NOTE:
- *    If there was an error finding the username, a json return for
- *    Foamicator can be obtained by calling invalid_username().
- *
  * SEE ALSO:
  *    For an example implementation see foamicate_auth.php
  *
@@ -99,9 +93,9 @@
  *                             // the authentication is in progress.
  *       'auth_fail'     => 1, // Returned when the authentication
  *                             // failed.
- *       'username_fail' => 2, // Returned when the username isn't found
- *                             // on the server.
- *       'logged_in'     => 3, // Returned if the login was successful.
+ *       'logged_in'     => 2, // Returned if the login was successful.
+ *       'stage_fail'    => 3, // Indicates that the server and addon are
+ *                             // out of sync in the auth process.
  *
  * The general structure of the json array is as follows:
  *
@@ -135,23 +129,21 @@ class Foamicatee
     protected static $status = array(
         'auth'          => 0,
         'auth_fail'     => 1,
-        'username_fail' => 2,
-        'logged_in'     => 3,
+        'logged_in'     => 2,
+        'stage_fail'    => 3,
     );
 
     const PRE_MASTER_SECRET_LENGTH = 48; // in bytes
     const SERVER_RANDOM_LENGTH     = 28;  // in bytes
     const SENDER_CLIENT            = '0x434C4E54';
 
-    protected static $padding = array(
-        'md5' => array(
-            'pad1' => '363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636',
-            'pad2' => '5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c',
-        ),
-        'sha' => array(
-            'pad1' => '36363636363636363636363636363636363636363636363636363636363636363636363636363636',
-            'pad2' => '5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c',
-        ),
+    protected static $md5_pad = array(
+        'pad1' => '363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636363636',
+        'pad2' => '5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c',
+    );
+    protected static $sha_pad = array(
+        'pad1' => '36363636363636363636363636363636363636363636363636363636363636363636363636363636',
+        'pad2' => '5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c',
     );
 
     /*
@@ -185,29 +177,32 @@ class Foamicatee
     }
 
     /*
-     * Generates the json string to return if the username isn't found.
+     * Returns the message for the client to indicate that it's at the wrong stage
+     * of authentication and it should retry.
      *
-     * @return array of status and the json encoded string
+     * @return array of status, json return message
      */
-    public static function invalid_username() {
+    public static function wrong_stage() {
         return array(
             'status' => true,
-            'json'   => json_encode(array('status' => Foamicatee::$status['username_fail'], 'error' => "Username does not exist.")),
+            'json'   => json_encode(array('status' => Foamicatee::$status['stage_fail'], 'error' => 'Wrong stage of logging in.')),
         );
     }
 
     /*
      * Generates the challenge message for the client addon.
      *
-     * @param user the array of user info, username, public key, random
+     * @param user the array of user info, public key, random
      * @returns array of status, json return message and the server values
      *     which will be needed later
      */
     public static function get_challenge($user) {
         // Return error if any required parameter is missing
-        if ( ! isset($user['random']) || ! isset($user['username']) || ! isset($user['public_key'])) {
+        if ( ! isset($user['random']) || ! isset($user['public_key'])) {
             return false;
         }
+
+        $user['public_key'] = Foamicatee::fix_key($user['public_key']);
 
         // Load the key into the engine
         $rsa = new Crypt_RSA();
@@ -224,7 +219,7 @@ class Foamicatee
         // Encode the encrypted secret as json
         return array(
             'status' => true,
-            'json'   => json_encode(array('secret' => $encrypted_secret, 'random' => $server_random, 'status' => Foamicatee::$status['auth'])),
+            'json'   => json_encode(array('secret' => $encrypted_secret, 'random' => $encrypted_random, 'status' => Foamicatee::$status['auth'])),
             'server' => array('random' => $server_random, 'pre_master_secret' => $pre_master_secret),
         );
     }
@@ -236,7 +231,7 @@ class Foamicatee
      * Checks to see if the server hash matches the user supplied hash.
      *
      * @param $user array with the md5 hash, the sha hash, the user
-     *      random, the public_key, and the username
+     *      random, the public_key
      * @param $server array with the pre_master_secret and the random value
      * @param success_url the url to tell the user to redirect to upon successful authentication
      * @param fail_url the url to tell the user to redirect to upon failed authentication
@@ -244,14 +239,16 @@ class Foamicatee
      */
     public static function authenticate($user, $server, $success_url, $fail_url) {
         // Return error if any required parameter is missing
-        if ( ! isset($user['random']) || ! isset($user['public_key']) || ! isset($user['username']) || ! isset($user['md5']) || ! isset($user['sha']) ||
+        if ( ! isset($user['random']) || ! isset($user['public_key']) || ! isset($user['md5']) || ! isset($user['sha']) ||
             ! isset($server['pre_master_secret']) || ! isset($server['random'])) {
             return false;
         }
 
+        $user['public_key'] = Foamicatee::fix_key($user['public_key']);
+
         // Load the key into the engine
         $rsa = new Crypt_RSA();
-        $rsa->loadKey($user['public_key'], CRYPT_RSA_PUBLIC_FORMAT_PKCS1);
+        $rsa->loadKey($user['public_key']);
         $rsa->setEncryptionMode(CRYPT_RSA_ENCRYPTION_PKCS1);
 
         // Decrypt the hashes from the client
@@ -259,12 +256,12 @@ class Foamicatee
         $user_sha = bin2hex($rsa->decrypt(pack('H*', $user['sha'])));
 
         // Generate the master secret
-        $master_secret        = Foamicateee::get_master_secret($server['pre_master_secret'], $user['random'], $server['random']);
-        $transmitted_messages = Foamicateee::get_transmitted_messages($user['username'], $user['random'], $server['random'], $master_secret);
+        $master_secret        = Foamicatee::get_master_secret($server['pre_master_secret'], $user['random'], $server['random']);
+        $transmitted_messages = Foamicatee::get_transmitted_messages($user['random'], $master_secret, $server['random']);
 
         // Calculate the expected hashes from the client
-        $md5_hash = Foamicateee::get_md5_hash($master_secret, $client['random'], $server['random'], $transmitted_messages);
-        $sha_hash = Foamicateee::get_sha_hash($master_secret, $client['random'], $server['random'], $transmitted_messages);
+        $md5_hash = Foamicatee::get_md5_hash($master_secret, $user['random'], $server['random'], $transmitted_messages);
+        $sha_hash = Foamicatee::get_sha_hash($master_secret, $user['random'], $server['random'], $transmitted_messages);
 
         // If the hashes match then set the successful login session secret
         if ($md5_hash === $user_md5 && $sha_hash === $user_sha) {
@@ -282,16 +279,19 @@ class Foamicatee
     }
 
     /*
-     * Calculates the md5 hash to expect from the client.
+     * Corrects the format of the public key so that Crypt/RSA won't
+     * freak out.
      *
-     * @param client_random the client's random value
-     * @param server_random the server's random value
-     * @param transmitted_messages the username, client_random,
-     *      master_secret, and server_random concatenated in this order
-     * @return the md5 hash
+     * @param public_key the key
+     * @return the fixed key
      */
-    protected static function get_md5_hash($master_secret, $client_random, $server_random, $transmitted_messages) {
-        return md5($master_secret . $md5['pad2'] .  md5($transmitted_messages . SENDER_CLIENT . $master_secret . $md5['pad1']));
+    protected static function fix_key($public_key) {
+        $public_key = substr_replace($public_key, '', 0, 26);   // Remove the BEGIN PUBLIC KEY
+        $public_key = substr_replace($public_key, '', -24, 24); // Remove the END PUBLIC KEY
+        $public_key = str_replace(' ', '', $public_key);        // Remove spaces
+        $public_key = str_replace("\r\n", '', $public_key);     // Remove line breaks
+        $public_key = chunk_split($public_key, 64, "\r\n");
+        return "\r\n-----BEGIN PUBLIC KEY-----\r\n" . $public_key . "-----END PUBLIC KEY-----\r\n";
     }
 
     /*
@@ -299,12 +299,25 @@ class Foamicatee
      *
      * @param client_random the client's random value
      * @param server_random the server's random value
-     * @param transmitted_messages the username, client_random,
+     * @param transmitted_messages the client_random,
+     *      master_secret, and server_random concatenated in this order
+     * @return the md5 hash
+     */
+    protected static function get_md5_hash($master_secret, $client_random, $server_random, $transmitted_messages) {
+        return md5($master_secret . Foamicatee::$md5_pad['pad2'] .  md5($transmitted_messages . Foamicatee::SENDER_CLIENT . $master_secret . Foamicatee::$md5_pad['pad1']));
+    }
+
+    /*
+     * Calculates the md5 hash to expect from the client.
+     *
+     * @param client_random the client's random value
+     * @param server_random the server's random value
+     * @param transmitted_messages the client_random,
      *      master_secret, and server_random concatenated in this order
      * @return the md5 hash
      */
     protected static function get_sha_hash($master_secret, $client_random, $server_random, $transmitted_messages) {
-        return sha1($master_secret . $sha['pad2'] . sha1($transmitted_messages . SENDER_CLIENT . $master_secret . $sha['pad1']));
+        return sha1($master_secret . Foamicatee::$sha_pad['pad2'] . sha1($transmitted_messages . Foamicatee::SENDER_CLIENT . $master_secret . Foamicatee::$sha_pad['pad1']));
     }
 
     /*
@@ -324,14 +337,13 @@ class Foamicatee
     /*
      * Creates the tranmitted_messages value.
      *
-     * @param username the username
      * @param user_random the random value of the user
      * @param server_random the random value of the server
      * @param master_secret the master secret
      * @return the value for transmitted_message
      */
-    protected static function get_transmitted_messages($username, $user_random, $server_random, $master_secret) {
-        return $username . $user_random . $master_secret . $server_random;
+    protected static function get_transmitted_messages($user_random, $master_secret, $server_random) {
+        return $user_random . $master_secret . $server_random;
     }
 
     /*

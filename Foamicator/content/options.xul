@@ -5,7 +5,6 @@
 <vbox xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
   <setting pref="extensions.foamicator.pub_key" type="string" title="Public Key" desc="The public key." />
   <setting pref="extensions.foamicator.priv_key" type="string" title="Private Key" desc="The private key." />
-  <setting pref="extensions.foamicator.username" type="string" title="Username" desc="The username to login with." />
   <setting type="control" title="Generate Keys">
     <button id="genbutton" label="Generate Keys" oncommand="Foamicator.generate_keys();"/>
   </setting>
