@@ -57,15 +57,19 @@ else {
     $user   = $_SESSION['user'];
     $server = $_SESSION['server'];
 
-    $user['md5'] = $_POST['md5'];
-    $user['sha'] = $_POST['sha'];
-
-    $result = Foamicatee::authenticate($user, $server, SUCCESS_URL, FAIL_URL);
-
-    if ($result['status']) {
-        $_SESSION['logged_in'] = true;
+    if ( ! isset($_REQUEST['md5']) || ! isset($_REQUEST['sha'])) {
+        $result = Foamicatee::wrong_stage();
     }
+    else {
+        $user['md5'] = $_REQUEST['md5'];
+        $user['sha'] = $_REQUEST['sha'];
 
+        $result = Foamicatee::authenticate($user, $server, SUCCESS_URL, FAIL_URL);
+
+        if ($result['status']) {
+            $_SESSION['logged_in'] = true;
+        }
+    }
     $_SESSION['authenticating'] = false;
     echo $result['json'];
 }

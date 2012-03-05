@@ -94,6 +94,8 @@
  *       'auth_fail'     => 1, // Returned when the authentication
  *                             // failed.
  *       'logged_in'     => 2, // Returned if the login was successful.
+ *       'stage_fail'    => 3, // Indicates that the server and addon are
+ *                             // out of sync in the auth process.
  *
  * The general structure of the json array is as follows:
  *
@@ -128,6 +130,7 @@ class Foamicatee
         'auth'          => 0,
         'auth_fail'     => 1,
         'logged_in'     => 2,
+        'stage_fail'    => 3,
     );
 
     const PRE_MASTER_SECRET_LENGTH = 48; // in bytes
@@ -174,6 +177,19 @@ class Foamicatee
     }
 
     /*
+     * Returns the message for the client to indicate that it's at the wrong stage
+     * of authentication and it should retry.
+     *
+     * @return array of status, json return message
+     */
+    public static function wrong_stage() {
+        return array(
+            'status' => true,
+            'json'   => json_encode(array('status' => Foamicatee::$status['stage_fail'], 'error' => 'Wrong stage of logging in.')),
+        );
+    }
+
+    /*
      * Generates the challenge message for the client addon.
      *
      * @param user the array of user info, public key, random
@@ -187,7 +203,6 @@ class Foamicatee
         }
 
         $user['public_key'] = Foamicatee::fix_key($user['public_key']);
-
 
         // Load the key into the engine
         $rsa = new Crypt_RSA();
