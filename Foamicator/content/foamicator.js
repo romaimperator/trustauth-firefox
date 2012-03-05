@@ -133,19 +133,21 @@ var Foamicator = {
       function(data) {
           if (data['status'] === foam.STATUS['stage_fail']) {
               // The server says we were in the middle of a previous authentication so try again.
-              foam.login();
+              foam.log(data['error']);
+              foam.login(event);
               return;
           } else if (data['status'] === foam.STATUS['auth']) {
+              //foam.log('secret: ' + data['secret']);
               // Now that we have received the server response, decrypt the pre_master_key
               var pre_master_secret = foam.decrypt(data['secret']);
-              //foam.log('pre_master_secret: ' + pre_master_key);
+              //foam.log('pre_master_secret: ' + pre_master_secret);
               var server_random  = foam.decrypt(data['random']);
               //foam.log('user random: ' + client_random);
               //foam.log('server random: ' + server_random);
 
               // Now we need to generate the master secret
               var master_secret = foam.get_master_secret(pre_master_secret, client_random, server_random);
-              //foam.log('master_key: ' + master_key);
+              //foam.log('master_secret: ' + master_secret);
 
               // Generate the validation hashes to return to the server
               var transmitted_messages = client_random + master_secret + server_random;
@@ -162,10 +164,12 @@ var Foamicator = {
                     if (data['status'] === foam.STATUS['auth_fail']) {
                         foam.log(data['error']);
                     } else if (data['status'] === foam.STATUS['logged_in']) {
-                        foam.logged_in = true;
+                        foam.log('login successful');
                     }
                     openUILinkIn(data['url'], 'current');
-              }, 'json').fail(this.output_fail);
+              }, 'json').fail(foam.output_fail);
+          } else {
+              foam.log('Status not support: ' + data['status']);
           }
     }, 'json').fail(this.output_fail);
   },
