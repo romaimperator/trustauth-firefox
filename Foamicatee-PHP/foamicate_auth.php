@@ -1,5 +1,6 @@
 <?php
 include('foamicatee.php');
+include('mysql.php');
 
 session_start();
 
@@ -16,24 +17,6 @@ if ( ! isset($_SESSION['logged_in'])) {
     $_SESSION['logged_in'] = false;
 }
 
-function fetch_user_info($public_key) {
-    $mysql_link = mysql_connect(':/var/mysql/mysql.sock', 'root');
-    $query = sprintf("SELECT * FROM users WHERE public_key='%s'", mysql_real_escape_string($public_key, $mysql_link));
-
-    mysql_select_db('foamicate');
-
-    $result = mysql_query($query, $mysql_link);
-    if ($result) {
-        $user = mysql_fetch_assoc($result);
-    }
-    else {
-        echo mysql_error();
-        return false;
-    }
-
-    mysql_close($mysql_link);
-    return $user;
-}
 
 if ( ! $_SESSION['authenticating']) {
     $_SESSION['authenticating'] = true;
