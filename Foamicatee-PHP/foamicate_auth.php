@@ -42,7 +42,7 @@ if ( ! $_SESSION['authenticating']) {
     // TODO: change from GET to POST
     //$user = fetch_user_info($username);
     $user = array(
-        'public_key' => $_REQUEST['public_key'],
+        'public_key' => rawurldecode($_REQUEST['public_key']),
         'random'     => $_REQUEST['random'],
     );
 
