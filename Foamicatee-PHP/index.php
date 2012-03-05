@@ -2,6 +2,7 @@
     <body>
         <input id="foamicate_url" type="hidden" value="foamicate_auth.php"/>
 <?php
+    include('mysql.php');
     session_start();
 
     if ( ! isset($_SESSION['logged_in'])) {
@@ -9,7 +10,22 @@
     }
 
     if ($_SESSION['logged_in']) {
+?>
+        <p>Welcome!</p>
+        <form action="add_note.php" method="post">
+            <input type="text" name="note" value="" />
+            <button type="submit">create note</button>
+        </form>
+<?php
+        $notes = get_notes($_SESSION['user_id']);
 
+        echo '<ul>';
+        foreach ($notes as $note) {
+            echo '<li>';
+            echo $note['note'];
+            echo '</li>';
+        }
+        echo '</ul>';
     }
     else {
 ?>
