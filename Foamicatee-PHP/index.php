@@ -35,13 +35,6 @@
             <ol><li>To use Foamicate on websites all you need to do is install the Foamicator addon.</li></ol>
         </p>
         <p>Get the Firefox addon and test it out on this site!</p>
-        <form action="add_user.php" method="post">
-            <label for="username">Username</label>
-            <input type="text" name="username" value=""/>
-            <label for="public_key">Public Key</label>
-            <textarea id="foamicate_public_key" name="public_key" cols='64' rows='5'></textarea>
-            <button type="submit">Create your user!</button>
-        </form>
 <?php
     }
 ?>

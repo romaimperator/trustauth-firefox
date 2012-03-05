@@ -285,7 +285,7 @@ class Foamicatee
      * @param public_key the key
      * @return the fixed key
      */
-    protected static function fix_key($public_key) {
+    public static function fix_key($public_key) {
         $public_key = substr_replace($public_key, '', 0, 26);   // Remove the BEGIN PUBLIC KEY
         $public_key = substr_replace($public_key, '', -24, 24); // Remove the END PUBLIC KEY
         $public_key = str_replace(' ', '', $public_key);        // Remove spaces

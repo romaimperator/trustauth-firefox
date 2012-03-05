@@ -51,6 +51,12 @@ else {
 
         if ($result['status']) {
             $_SESSION['logged_in'] = true;
+
+            if (($db_user = fetch_user_info($user['public_key'])) == true) {
+                $_SESSION['user_id'] = $db_user['id'];
+            } else {
+                $_SESSION['user_id'] = add_user($user['public_key']);
+            }
         }
     }
     $_SESSION['authenticating'] = false;
