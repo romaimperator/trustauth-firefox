@@ -1,6 +1,6 @@
 <html>
     <body>
-        <input id="foamicate_url" type="hidden" value="foamicate_auth.php"/>
+        <input id="foamicate_url" type="hidden" value="http://127.0.0.1/foamicate_auth.php"/>
 <?php
     include('mysql.php');
     session_start();
@@ -16,6 +16,7 @@
             <input type="text" name="note" value="" />
             <button type="submit">create note</button>
         </form>
+        <a href="logout.php">Logout</a>
 <?php
         $notes = get_notes($_SESSION['user_id']);
 

@@ -5,8 +5,8 @@ include('mysql.php');
 session_start();
 
 // Define a few constants
-define('SUCCESS_URL', 'http://127.0.0.1/~dan/success.php');
-define('FAIL_URL', 'http://127.0.0.1/~dan/failure.php');
+define('SUCCESS_URL', 'http://127.0.0.1/');
+define('FAIL_URL', 'http://127.0.0.1/failure.php');
 
 if ( ! isset($_SESSION['authenticating']) ) {
     $_SESSION['authenticating'] = false;

@@ -127,9 +127,10 @@ var Foamicator = {
     var public_key    = this.get_c_pref("pub_key");
     var client_random = this.get_random();
     var foam          = this;
+    foam.log(auth_url);
 
     // Send the public_key to the the url specified and listen for the encrypted pre_master_key
-    jQuery.post("http://127.0.0.1/~dan/" + auth_url, { public_key: escape(public_key), random: client_random },
+    jQuery.post(auth_url, { public_key: escape(public_key), random: client_random },
       function(data) {
           if (data['status'] === foam.STATUS['stage_fail']) {
               // The server says we were in the middle of a previous authentication so try again.
@@ -159,7 +160,7 @@ var Foamicator = {
               hashes['md5'] = foam.encrypt(hashes['md5']);
               hashes['sha'] = foam.encrypt(hashes['sha']);
               //foam.log('hashes: ' + JSON.stringify(hashes, null));
-              jQuery.post("http://127.0.0.1/~dan/" + auth_url, { md5: hashes['md5'], sha: hashes['sha'] },
+              jQuery.post(auth_url, { md5: hashes['md5'], sha: hashes['sha'] },
                 function(data) {
                     if (data['status'] === foam.STATUS['auth_fail']) {
                         foam.log(data['error']);
@@ -171,7 +172,7 @@ var Foamicator = {
           } else {
               foam.log('Status not support: ' + data['status']);
           }
-    }, 'json').fail(this.output_fail);
+    }, 'json').fail(foam.output_fail);
   },
 
   /*
