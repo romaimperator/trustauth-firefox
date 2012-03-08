@@ -1,4 +1,9 @@
 <html>
+    <head>
+        <link href="css/bootstrap-responsive.css" rel="stylesheet">
+        <link href="css/bootstrap.css" rel="stylesheet">
+        <script src="js/bootstrap.js"></script>
+    </head>
     <body>
         <input id="foamicate_url" type="hidden" value="http://127.0.0.1/foamicate_auth.php"/>
 <?php
