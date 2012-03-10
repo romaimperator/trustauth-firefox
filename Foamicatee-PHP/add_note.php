@@ -13,7 +13,7 @@ if ( ! isset($_POST['note']) || ! isset($_SESSION['user_id'])) {
     if ($SERVER['HTTP_REFERER']) {
         header('LOCATION: ' . $SERVER['HTTP_REFERER']);
     } else {
-        header('LOCATION: /~dan/');
+        header('LOCATION: /');
     }
 }
 
