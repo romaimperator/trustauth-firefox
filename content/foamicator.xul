@@ -21,7 +21,9 @@
 
   <statusbar id="status-bar">
       <statusbarpanel id="foamicator-panel" label="&menutitle;" >
-          <button label="Login" oncommand="Foamicator.login(event);" />
+          <button id="foamicator-login" label="Login" oncommand="Foamicator.login(event);" />
+          <button label="Test" oncommand="alert(Foamicator.domain_exist(content.document.domain));"/>
+          <button label="Change" oncommand="Foamicator.set_button_text('yomana');"/>
       </statusbarpanel>
   </statusbar>
 
