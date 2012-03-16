@@ -306,11 +306,19 @@ var Foamicator = {
     document.getElementById('foamicator-login').label = text;
   },
 
+  /*
+   * Prompts the user with the password dialog.
+   *
+   * NOTE: currently not in use.
+   */
   show_master_password_dialog: function() {
     var win = window.openDialog("chrome://foamicator/content/password_dialog.xul",
                       "foamicatorPasswordDialog", "chrome,centerscreen");
   },
 
+  /*
+   * Initializes the place to store the public and private key pairs.
+   */
   init_db: function() {
     Components.utils.import("resource://gre/modules/Services.jsm");
     Components.utils.import("resource://gre/modules/FileUtils.jsm");
@@ -326,11 +334,20 @@ var Foamicator = {
     //}
   },
 
+  /*
+   * Returns the domain of the current page.
+   * @return the current page's domain
+   */
   get_domain: function() {
     this.init_doc();
     return this.doc.domain;
   },
 
+  /*
+   * This function stores the key in the browser's password manager
+   *
+   * @param key the key to store
+   */
   store_encryption_key: function(key) {
     var hostname = 'chrome://foamicator';
     var formSubmitURL = null;
@@ -354,6 +371,11 @@ var Foamicator = {
     this.log("store info");
   },
 
+  /*
+   * Retrieves the enryption key that is stored in the password manager
+   *
+   * @return the key that was stored
+   */
   get_encryption_key: function() {
     var hostname = 'chrome://foamicator';
     var formSubmitURL = null;
@@ -384,6 +406,11 @@ var Foamicator = {
     return password;
   },
 
+  /*
+   * A debugging function used to try and dump an object to the log
+   *
+   * @param obj the object to dump
+   */
   dump: function(obj) {
     var out = '';
     for (var i in obj) {
@@ -393,6 +420,12 @@ var Foamicator = {
     this.log(out);
   },
 
+  /*
+   * Checks to see if the given domain has a key in the database
+   *
+   * @param domain the domain to look for
+   * @return true if the domain is in the database false otherwise
+   */
   domain_exist: function(domain) {
     var foam = this;
 
@@ -427,6 +460,15 @@ var Foamicator = {
     return domain_exists;
   },
 
+  /*
+   * The main function used to login to the website. It fetches the encryption key,
+   * the most recently created key from the database, decrypts the keys, and then
+   * uses them to login to the website.
+   *
+   * The database query and the login are handled asynchronously.
+   *
+   * @param domain the domain of the page to login to
+   */
   login_to_domain: function(domain) {
     var foam = this;
 
@@ -466,6 +508,9 @@ var Foamicator = {
     });
   },
 
+  /*
+   * Initializes the javascript listeners for the buttons on the preference page.
+   */
   init_listener: function() {
     gBrowser.addEventListener("DOMContentLoaded", this.on_page_load, false);
 
@@ -490,6 +535,9 @@ var Foamicator = {
     Services.obs.addObserver(observer, "addon-options-displayed", false);
   },
 
+  /*
+   * Prompts the user to enter a new master password.
+   */
   prompt_password: function() {
     var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
                   .getService(Components.interfaces.nsIPromptService);
@@ -501,6 +549,9 @@ var Foamicator = {
     }
   },
 
+  /*
+   * Initializes the doc attribute with the document of the current page.
+   */
   init_doc: function() {
     this.doc = content.document;
   },
@@ -535,12 +586,23 @@ var Foamicator = {
       this.prefs.setIntPref(preference, value);
   },
 
+  /*
+   * Logs a message to the console as a Foamicator message.
+   *
+   * @param aMessage the message to log
+   */
   log: function(aMessage) {
       var console = Components.classes['@mozilla.org/consoleservice;1'].
                 getService(Components.interfaces.nsIConsoleService);
       console.logStringMessage('Foamicator: ' + aMessage);
   },
 
+  /*
+   * Calculates the md5 hash of the given string
+   *
+   * @param string the string to hash
+   * @return the md5 hash
+   */
   md5: function(string) {
     // Get the hash function object
     var ch = Components.classes["@mozilla.org/security/hash;1"]
@@ -549,6 +611,12 @@ var Foamicator = {
     return this.hash(ch, string);
   },
 
+  /*
+   * Calculates the sha-1 hash of the given string
+   *
+   * @param string the string to hash
+   * @return the sha-1 hash
+   */
   sha1: function(string) {
     // Get the hash function object
     var ch = Components.classes["@mozilla.org/security/hash;1"]
@@ -557,6 +625,12 @@ var Foamicator = {
     return this.hash(ch, string);
   },
 
+  /*
+   * Calculates the sha-512 hash of the given string
+   *
+   * @param string the string to hash
+   * @return the sha-512 hash
+   */
   sha512: function(string) {
     // Get the hash function object
     var ch = Components.classes["@mozilla.org/security/hash;1"]
@@ -565,6 +639,14 @@ var Foamicator = {
     return this.hash(ch, string);
   },
 
+  /*
+   * The abstract function to use the firefox object to calculate the hash
+   * using the browser function instead of a javascript function.
+   *
+   * @param ch the crypto hash object initalized to the correct hash function
+   * @param string the string to hash
+   * @return the calculated hash
+   */
   hash: function(ch, string) {
     var converter = Components.classes["@mozilla.org/intl/scriptableunicodeconverter"]
                     .createInstance(Components.interfaces.nsIScriptableUnicodeConverter);
@@ -593,5 +675,5 @@ var Foamicator = {
   },
 };
 
-// Setup the initializer
+// Initialize the Foamicator object
 window.addEventListener("load", function(e) { Foamicator.on_load(e); }, false);
