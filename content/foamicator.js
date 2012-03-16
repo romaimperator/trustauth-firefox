@@ -280,9 +280,9 @@ var Foamicator = {
    */
   set_master_password: function(password) {
     this.log(password);
-    var first_hash = this.sha512(password + this.FOAMICATOR_SALT);
+    var first_hash = this.sha256(password + this.FOAMICATOR_SALT);
     this.log(first_hash);
-    var second_hash = this.sha512(first_hash + this.get_domain());
+    var second_hash = this.sha256(first_hash + this.get_domain());
     this.log(second_hash);
 
     this.store_encryption_key(second_hash);
@@ -681,6 +681,20 @@ var Foamicator = {
     var ch = Components.classes["@mozilla.org/security/hash;1"]
                    .createInstance(Components.interfaces.nsICryptoHash);
     ch.init(ch.SHA1);
+    return this.hash(ch, string);
+  },
+
+  /*
+   * Calculates the sha-256 hash of the given string
+   *
+   * @param string the string to hash
+   * @return the sha-256 hash
+   */
+  sha256: function(string) {
+    // Get the hash function object
+    var ch = Components.classes["@mozilla.org/security/hash;1"]
+                   .createInstance(Components.interfaces.nsICryptoHash);
+    ch.init(ch.SHA256);
     return this.hash(ch, string);
   },
 
