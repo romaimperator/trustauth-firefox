@@ -289,6 +289,65 @@ var Foamicator = {
     this.log("done");
   },
 
+  /*
+   * Encodes an ASCII string as hex
+   *
+   * @param string the string to convert
+   * @return the hex encoded string
+   */
+  encode_hex: function(string) {
+    var retval = '';
+    var i = 0;
+    var tmp = '';
+
+    for(; i < string.length; i++) {
+      tmp = string.charCodeAt(i).toString(16);
+      if (tmp.length === 1) {
+        tmp = '0' + tmp;
+      } else if (tmp.length !== 2) {
+        this.log('encode of: ' + string + ' produced character length of: ' + tmp.length + ' at character: ' + i);
+      }
+      retval += tmp;
+    }
+    return retval;
+  },
+
+  /*
+   * Encodes a unicode string as hex
+   *
+   * @param string the string to convert
+   * @return the hex encoded string
+   */
+  encode_bytes: function(string) {
+    return forge.util.hexToBytes(this.encode_hex(string));
+  },
+
+  /*
+   * Decodes an string from hex
+   *
+   * @param hex the hex string to decode
+   * @return the decoded string
+   */
+  decode_hex: function(hex) {
+    var retval = '';
+    var i = 0;
+
+    for(; i < hex.length; i+= 2) {
+      retval += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    }
+    return retval;
+  },
+
+  /*
+   * Decodes an string from bytes
+   *
+   * @param bytes the bytes to decode
+   * @return the decoded string
+   */
+  decode_bytes: function(bytes) {
+    return this.decode_hex(forge.util.bytesToHex(bytes));
+  },
+
 
 
 
