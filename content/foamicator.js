@@ -122,10 +122,10 @@ var Foamicator = {
    * @return the decrypted data
    */
   decrypt_aes: function(key, data) {
-    var cipher = forge.aes.startDecrypting(key, this.FOAMICATOR_SALT, null);
-    cipher.update(forge.util.hexToBytes(data));
+    var cipher = forge.aes.startDecrypting(key, forge.util.createBuffer(this.FOAMICATOR_SALT), null);
+    cipher.update(forge.util.createBuffer(forge.util.hexToBytes(data)));
     cipher.finish();
-    return cipher.output.toHex();
+    return this.decode_hex(cipher.output.toHex());
   },
 
   /*
@@ -147,8 +147,8 @@ var Foamicator = {
    * @return the encrypted data
    */
   encrypt_aes: function(key, data) {
-    var cipher = forge.aes.startEncrypting(key, this.FOAMICATOR_SALT, null);
-    cipher.update(forge.util.hexToBytes(data));
+    var cipher = forge.aes.startEncrypting(key, forge.util.createBuffer(this.FOAMICATOR_SALT), null);
+    cipher.update(forge.util.createBuffer(this.encode_bytes(data)));
     cipher.finish();
     return cipher.output.toHex();
   },
