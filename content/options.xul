@@ -6,6 +6,9 @@
   <setting pref="extensions.foamicator.pub_key" type="string" title="Public Key" desc="The public key." />
   <setting pref="extensions.foamicator.priv_key" type="string" title="Private Key" desc="The private key." />
   <setting type="control" title="Generate Keys">
-    <button id="genbutton" label="Generate Keys" oncommand="Foamicator.generate_keys();"/>
+    <button id="genbutton" label="Generate Keys" oncommand=""/>
+  </setting>
+  <setting type="control" title="Set Master Password">
+    <button id="mpbutton" label="Set Master Password" oncommand=""/>
   </setting>
 </vbox>
