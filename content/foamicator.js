@@ -127,16 +127,6 @@ var Foamicator = {
   },
 
   /*
-   * Calculates the retrieval key
-   *
-   * @param password the password to use
-   * @return the retrieval key
-   */
-  calculate_retrieval_key: function(password) {
-    return this.sha256(password + this.FOAMICATOR_RET_KEY_SALT);
-  },
-
-  /*
    * Generates the hashes to respond to the server with.
    *
    * @param master_secret the master_secret to use
@@ -289,7 +279,7 @@ var Foamicator = {
    * @return boolean
    */
   is_unlocked: function() {
-    return this.retrieval_key !== null;
+    return this.unlocked;
   },
 
   /*
@@ -317,7 +307,7 @@ var Foamicator = {
   on_load: function() {
     // initialization code
     this.initialized = true;
-    this.retrieval_key = null;
+    this.unlocked = false;
 
     this.init_pref();
     this.init_db();
@@ -351,16 +341,16 @@ var Foamicator = {
    * @param password the master password
    */
   unlock: function(password) {
-    this.retrieval_key = this.calculate_retrieval_key(password);
-    encryption_key     = this.calculate_encryption_key(password);
+    encryption_key = this.calculate_encryption_key(password);
 
-    if (this.get_encryption_key() !== encryption_key) {
+    if (this.get_encryption_key() === encryption_key) {
+      this.log('unlock passed');
+      this.unlocked = true;
+    } else {
       this.log('unlock failed');
-      this.retrieval_key = null;
+      this.unlocked = false;
       this.prompt_password("Incorrect master password");
-      return;
     }
-    this.log('unlock passed');
   },
 
   /*
