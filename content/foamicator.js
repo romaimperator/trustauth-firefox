@@ -305,7 +305,9 @@ var Foamicator = {
 
     var decrypted_keys = this.fetch_key_pair(domain)
     if (decrypted_keys !== null) {
-      authenticate(decrypted_keys);
+      this.authenticate(decrypted_keys);
+    } else {
+      this.log('error fetching keys');
     }
   },
 
