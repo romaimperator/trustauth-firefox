@@ -316,20 +316,6 @@ var Foamicator = {
   },
 
   /*
-   * Checks to see if the domain is in the database on page load and
-   * sets the button text accordingly.
-   */
-  on_page_load: function(event) {
-    if (Foamicator.domain_exist(Foamicator.get_domain())) {
-      Foamicator.log('domain exists');
-      Foamicator.set_button_text('Login');
-    } else {
-      Foamicator.log("domain doesn't exists");
-      Foamicator.set_button_text('Sign Up');
-    }
-  },
-
-  /*
    * Outputs the error mesasge if the post request failed.
    */
   output_fail: function(msg, textStatus, errorThrown) {
@@ -703,8 +689,6 @@ var Foamicator = {
    * Initializes the javascript listeners for the buttons on the preference page.
    */
   init_listener: function() {
-    gBrowser.addEventListener("DOMContentLoaded", this.on_page_load, false);
-
     var observer = {
       observe: function(aSubject, aTopic, aData) {
         // If this addon's option page is displayed
