@@ -27,23 +27,24 @@ var Foamicator = {
   login: function () {
     if ( ! this.is_password_set()) {
       this.prompt_new_password();
-    }
-
-    if (this.is_unlocked()) {
-      var domain = this.get_domain();
-
-      // Check to see if this domain already has a key
-      if (this.domain_exist(domain)) {
-        // Login if the user already has a key for this site
-        this.login_to_domain(domain);
-      } else {
-        // Create a new key and store it in the database for this domain
-        this.generate_key_pair(domain);
-        // Then login with the new pair
-        this.login_to_domain(domain);
-      }
     } else {
-      this.prompt_password();
+      if (this.is_unlocked()) {
+        var domain = this.get_domain();
+
+        // Check to see if this domain already has a key
+        if (this.domain_exist(domain)) {
+          // Login if the user already has a key for this site
+          this.login_to_domain(domain);
+        } else {
+          // Create a new key and store it in the database for this domain
+          this.generate_key_pair(domain);
+          // Then login with the new pair
+          this.login_to_domain(domain);
+        }
+      } else {
+        this.prompt_password();
+        this.login();
+      }
     }
   },
 
