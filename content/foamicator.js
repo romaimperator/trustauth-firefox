@@ -358,6 +358,7 @@ var Foamicator = {
       this.log('unlock failed');
       this.retrieval_key = null;
       this.prompt_password("Incorrect master password");
+      return;
     }
     this.log('unlock passed');
   },
