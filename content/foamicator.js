@@ -207,6 +207,24 @@ var Foamicator = {
   },
 
   /*
+   * Returns true if the master password has been set before.
+   *
+   * @return boolean
+   */
+  is_password_set: function() {
+    return this.get_encryption_key() !== null;
+  },
+
+  /*
+   * Returns true if the master password has been entered to unlock the addon
+   *
+   * @return boolean
+   */
+  is_unlocked: function() {
+    return this.retrieval_key !== null;
+  },
+
+  /*
    * This function loads the keys from the preferences
    */
   load_keys: function() {
@@ -229,20 +247,10 @@ var Foamicator = {
   on_load: function() {
     // initialization code
     this.initialized = true;
+    this.retrieval_key = null;
 
     this.init_pref();
     this.init_db();
-
-    // Check if this is the first run and generate keys if it is
-    if (this.get_b_pref("first_run") === true) {
-      this.set_b_pref("first_run", false);
-      this.generate_keys();
-    } else {
-      // Otherwise load the keys from the preferences
-      this.load_keys();
-    }
-
-    // Setup the listeners
     this.init_listener();
   },
 
