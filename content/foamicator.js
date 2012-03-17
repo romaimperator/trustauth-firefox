@@ -691,36 +691,24 @@ var Foamicator = {
    * @return true if the domain is in the database false otherwise
    */
   domain_exist: function(domain) {
-    var foam = this;
-
-    // Create the statement to fetch the most recently created key for this domain
-    this.log("connection ready: " + this.db.connectionReady);
     try {
+      // Create the statement to fetch the most recently created key for this domain
       var statement = this.db.createStatement("SELECT domain FROM keys, sites, keys_sites WHERE keys.id=keys_sites.key_id AND sites.id=keys_sites.site_id AND sites.domain=:domain ORDER BY keys.created DESC");
-    } catch (e) {
-      this.log(this.db.lastErrorString);
-      return;
-    }
 
-    this.log('created statement');
-    // Bind the parameter
-    try {
+      // Bind the parameter
       statement.params.domain = domain;
 
+      var domain_exists = false;
       // Execute the query synchronously
-      statement.executeStep();
-      this.log('executed statement');
-      var fetched_domain = statement.row;
-
-      this.log(fetched_domain.domain);
-      if (domain === fetched_domain.domain) {
+      if (statement.executeStep()) {
         domain_exists = true;
       }
     } catch (ex) {
       this.dump(ex);
-      domain_exists = false;
+      this.log(this.db.lastErrorString);
+    } finally {
+      statement.finalize();
     }
-    statement.finalize();
     return domain_exists;
   },
 
