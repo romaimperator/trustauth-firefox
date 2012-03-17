@@ -3,7 +3,12 @@ var Foamicator = {
 
   SENDER_CLIENT: '0x434C4E54',
 
-  FOAMICATOR_SALT: '2EEC776BE2291D76E7C81706BD0E36C0C10D62A706ADB12D2799CA731503FBBA',
+  FOAMICATOR_USERNAME:     'CC101164749B358E3C3C15F11DC6DA10F9551E4C435F15BB23F577B2FBCC3413',
+  FOAMICATOR_ENC_KEY_SALT: '2EEC776BE2291D76E7C81706BD0E36C0C10D62A706ADB12D2799CA731503FBBA',
+  FOAMICATOR_RET_KEY_SALT: '7CAB8505B677344B34B83C77B6A3EF527DC31FEFDF531B9F5F623DCE040A4351',
+
+  FOAMICATOR_HOSTNAME: 'chrome://foamicator',
+  FOAMICATOR_HTTPREALM: 'master_password',
 
   STATUS: {
       'auth':       0,
@@ -476,10 +481,10 @@ var Foamicator = {
    * @param key the key to store
    */
   store_encryption_key: function(key) {
-    var hostname = 'chrome://foamicator';
+    var hostname = this.FOAMICATOR_HOSTNAME;
     var formSubmitURL = null;
-    var httprealm = 'master_password';
-    var username = this.FOAMICATOR_SALT;
+    var httprealm = this.FOAMICATOR_HTTPREALM;
+    var username = this.FOAMICATOR_USERNAME;
     var password = key;
 
     this.log("begin");
@@ -504,11 +509,11 @@ var Foamicator = {
    * @return the key that was stored
    */
   get_encryption_key: function() {
-    var hostname = 'chrome://foamicator';
+    var hostname = this.FOAMICATOR_HOSTNAME;
     var formSubmitURL = null;
-    var httprealm = 'master_password';
-    var username = this.FOAMICATOR_SALT;
-    var password;
+    var httprealm = this.FOAMICATOR_HTTPREALM;
+    var username = this.FOAMICATOR_USERNAME;
+    var password = null;
 
     try {
       // Get Login Manager
@@ -525,8 +530,7 @@ var Foamicator = {
           break;
         }
       }
-    }
-    catch(ex) {
+    } catch(ex) {
       // This will only happen if there is no nsILoginManager component class
     }
 
