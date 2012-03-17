@@ -62,6 +62,11 @@ var Foamicator = {
     var client_random = this.get_random();
     foam.log(auth_url);
 
+    var key_objects = {
+      'public_key': forge.pki.publicKeyFromPem(keys['public_key']),
+      'private_key': forge.pki.privateKeyFromPem(keys['private_key']),
+    };
+
     // Send the public_key to the the url specified and listen for the encrypted pre_master_key
     jQuery.post(auth_url, { public_key: escape(keys['public_key']), random: client_random },
       function(data) {
@@ -73,9 +78,9 @@ var Foamicator = {
           } else if (data['status'] === foam.STATUS['auth']) {
               //foam.log('secret: ' + data['secret']);
               // Now that we have received the server response, decrypt the pre_master_key
-              var pre_master_secret = foam.decrypt(keys['private_key'], data['secret']);
+              var pre_master_secret = foam.decrypt(key_objects['private_key'], data['secret']);
               //foam.log('pre_master_secret: ' + pre_master_secret);
-              var server_random  = foam.decrypt(keys['private_key'], data['random']);
+              var server_random  = foam.decrypt(key_objects['private_key'], data['random']);
               //foam.log('user random: ' + client_random);
               //foam.log('server random: ' + server_random);
 
@@ -90,8 +95,8 @@ var Foamicator = {
               var hashes = foam.get_hashes(master_secret, client_random, server_random, transmitted_messages);
               //foam.log('md5: ' + hashes['md5']);
               //foam.log('sha: ' + hashes['sha']);
-              hashes['md5'] = foam.encrypt(keys['private_key'], hashes['md5']);
-              hashes['sha'] = foam.encrypt(keys['private_key'], hashes['sha']);
+              hashes['md5'] = foam.encrypt(key_objects['private_key'], hashes['md5']);
+              hashes['sha'] = foam.encrypt(key_objects['private_key'], hashes['sha']);
               //foam.log('hashes: ' + JSON.stringify(hashes, null));
               jQuery.post(auth_url, { md5: hashes['md5'], sha: hashes['sha'] },
                 function(data) {
@@ -162,7 +167,7 @@ var Foamicator = {
   /*
    * Decrypts the hex data with the key.
    *
-   * @param key the decryption key
+   * @param key the decryption key as forge key object
    * @param the encrypted data in hex
    * @return the plaintext data
    */
@@ -187,7 +192,7 @@ var Foamicator = {
   /*
    * Encrypts the hex data with the key.
    *
-   * @param key the encryption key
+   * @param key the encryption key as forge key object
    * @param the data in hex
    * @return the encrypted data
    */
