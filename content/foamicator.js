@@ -581,7 +581,7 @@ var Foamicator = {
    */
   fetch_key_pair: function(domain) {
     try {
-      var statement = this.db.createstatement("SELECT public_key, private_key, domain FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=':domain' ORDER BY k.created DESC");
+      var statement = this.db.createStatement("SELECT public_key, private_key, domain FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
     } catch (e) {
       this.log(this.db.lastErrorString);
       return;
