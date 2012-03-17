@@ -217,22 +217,25 @@ var Foamicator = {
   },
 
   /*
-   * Generates a public / private key pair.
+   * Generates a public / private key pair and stores it in the database for
+   * the domain
+   *
+   * @param domain the domain this key pair is for
    */
-  generate_keys: function() {
+  generate_key_pair: function(domain) {
     // Retreive the key length and exponent values
     var key_length = this.get_i_pref("key_length");
     var exponent   = this.get_i_pref("exponent");
 
-    // Generate the key
     var keys = forge.pki.rsa.generateKeyPair(key_length, exponent);
 
-    this.public_key  = keys['publicKey'];
-    this.private_key = keys['privateKey'];
+    var encryption_key = this.get_encryption_key();
+    var encrypted_keys = {
+      'publicKey': this.encrypt_aes(encryption_key, forge.pki.publicKeyToPem(keys['publicKey'])),
+      'privateKey': this.encrypt_aes(encryption_key, forge.pki.privateKeyToPem(keys['privateKey'])),
+    };
 
-    // Store the values generated
-    this.set_c_pref("pub_key", forge.pki.publicKeyToPem(this.public_key));
-    this.set_c_pref("priv_key", forge.pki.privateKeyToPem(this.private_key));
+    this.store_key_pair(domain, encrypted_keys['publicKey'], encrypted_keys['privateKey']);
   },
 
   /*
@@ -468,6 +471,103 @@ var Foamicator = {
    */
   get_domain: function() {
     return this.get_doc().domain;
+  },
+
+  /*
+   * Returns the site_id for the domain or null if the domain wasn't found.
+   *
+   * @param domain the domain to get the site_id for
+   * @return the site_id
+   */
+  get_site_id: function(domain) {
+    try {
+      var statement = this.db.createStatement("SELECT id FROM sites WHERE domain=:domain");
+      statement.params.domain = domain;
+      statement.executeStep();
+
+      var fetched_domain = statement.row;
+      if (fetched_domain.id) {
+        return fetched_domain.id;
+      }
+    } catch (ex) {
+      this.dump(ex);
+      this.log(this.db.lastErrorString);
+    }
+    return null;
+  },
+
+  /*
+   * Stores the key pair for the matching domain
+   *
+   * @param domain the domain associated with this key pair
+   * @param public_key the public key of the pair as a forge object
+   * @param private_key the private key of the pair as a forge object
+   */
+  store_key_pair: function(domain, public_key, private_key) {
+    // First try to insert the domain if it's not already there.
+    var site_id = this.get_site_id(domain);
+    this.db.beginTransaction();
+    if (site_id === null) {
+      try {
+        var statement = this.db.createStatement("INSERT OR ABORT INTO sites (domain) VALUES(:domain)");
+        statement.params.domain = domain;
+        statement.execute();
+
+        site_id = this.db.lastInsertRowID;
+      } catch (e) {
+        if (this.db.lastErrorString !== "column domain is not unique") {
+          this.log(this.db.lastErrorString);
+          this.dump(e);
+          this.db.rollbackTransaction();
+          return;
+        }
+      } finally {
+        statement.finalize();
+      }
+    }
+
+    // Now that the domain is there, try to insert the new keys
+    try {
+      var statement = this.db.createStatement("INSERT INTO keys (public_key, private_key, created) VALUES(:public_key, :private_key, :created)");
+      statement.params.public_key  = public_key;
+      statement.params.private_key = private_key;
+      statement.params.created     = (new Date()).getTime();
+      statement.execute();
+
+      var key_id = this.db.lastInsertRowID;
+    } catch (e) {
+      this.dump(e);
+      this.log(this.db.lastErrorString);
+      this.db.rollbackTransaction();
+      return;
+    } finally {
+      statement.finalize();
+    }
+
+    // Last but not least, if both the domain and the keys were inserted then link them
+    if (key_id !== null && site_id !== null) {
+      try {
+        var statement = this.db.createStatement("INSERT INTO keys_sites (key_id, site_id) VALUES(:key_id, :site_id)");
+        statement.params.key_id  = key_id;
+        statement.params.site_id = site_id;
+        statement.execute();
+      } catch (e) {
+        this.dump(e);
+        this.log(this.db.lastErrorString);
+        this.db.rollbackTransaction();
+        return;
+      } finally {
+        statement.finalize();
+      }
+    } else {
+      this.db.rollbackTransaction();
+      return;
+    }
+
+    // If everything was ok then commit the transaction
+    this.log('key stored successfully');
+    this.db.commitTransaction();
+
   },
 
   /*
