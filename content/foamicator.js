@@ -473,20 +473,20 @@ var Foamicator = {
    * @return the site_id
    */
   get_site_id: function(domain) {
+    var row_id = null;
     try {
       var statement = this.db.createStatement("SELECT id FROM sites WHERE domain=:domain");
       statement.params.domain = domain;
-      statement.executeStep();
-
-      var fetched_domain = statement.row;
-      if (fetched_domain.id) {
-        return fetched_domain.id;
+      if (statement.executeStep()) {
+        row_id = statement.row.id;
       }
     } catch (ex) {
       this.dump(ex);
       this.log(this.db.lastErrorString);
+    } finally {
+      statement.finalize();
     }
-    return null;
+    return row_id;
   },
 
   /*
