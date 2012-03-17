@@ -340,10 +340,9 @@ var Foamicator = {
 
   /*
    * Outputs the error mesasge if the post request failed.
-   * TODO: change to not use alerts
    */
   output_fail: function(msg, textStatus, errorThrown) {
-    alert(msg.status + ";" + msg.statusText + ";" + msg.responseXML);
+    this.log(msg.status + ";" + msg.statusText + ";" + msg.responseXML);
   },
 
   /*
