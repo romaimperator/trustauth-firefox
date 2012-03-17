@@ -19,11 +19,9 @@ var Foamicator = {
    * @return none
    */
   authenticate: function(keys) {
-    this.init_doc();
-
     var foam          = this;
     // Fetch the URL to authenticate with from the page.
-    var auth_url      = jQuery('input:hidden#foamicate_url', this.doc).val();
+    var auth_url      = jQuery('input:hidden#foamicate_url', this.get_doc()).val();
     var client_random = this.get_random();
     foam.log(auth_url);
 
@@ -233,7 +231,6 @@ var Foamicator = {
     this.initialized = true;
 
     this.init_pref();
-    this.init_doc();
     this.init_db();
 
     // Check if this is the first run and generate keys if it is
@@ -398,8 +395,7 @@ var Foamicator = {
    * @return the current page's domain
    */
   get_domain: function() {
-    this.init_doc();
-    return this.doc.domain;
+    return this.get_doc().domain;
   },
 
   /*
@@ -611,8 +607,8 @@ var Foamicator = {
   /*
    * Initializes the doc attribute with the document of the current page.
    */
-  init_doc: function() {
-    this.doc = content.document;
+  get_doc: function() {
+    return content.document;
   },
 
   // Fetch the preferences for the addon
