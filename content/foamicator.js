@@ -12,6 +12,34 @@ var Foamicator = {
       'stage_fail': 3,
   },
 
+/*********************/
+/* Primary API calls */
+/*********************/
+
+  /*
+   * Authenticates this addon with the remote server.
+   */
+  login: function () {
+    if (this.is_unlocked()) {
+      var domain = this.get_domain();
+
+      // Check to see if this domain already has a key
+      if (this.domain_exists(domain)) {
+        // Login if the user already has a key for this site
+        this.login_to_domain(domain);
+      } else {
+        // Create a new key and store it in the database for this domain
+        this.generate_key_pair(domain);
+      }
+    } else {
+      this.prompt_password();
+    }
+  },
+
+/*****************************/
+/* Pure Javascript functions */
+/*****************************/
+
   /*
    * Runs the ajax requests that authenticate the given key with the server.
    *
@@ -225,12 +253,20 @@ var Foamicator = {
   },
 
   /*
-   * Authenticates this addon with the remote server.
+   * The main function used to login to the website. It fetches the key pair and
+   * uses them to login to the website.
+   *
+   * The login is handled asynchronously.
+   *
+   * @param domain the domain of the page to login to
    */
-  login: function (event) {
-    var domain = this.get_domain();
+  login_to_domain: function(domain) {
+    var foam = this;
 
-    this.login_to_domain(domain);
+    var decrypted_keys = this.fetch_key_pair(domain)
+    if (decrypted_keys !== null) {
+      authenticate(decrypted_keys);
+    }
   },
 
   /*
@@ -399,6 +435,42 @@ var Foamicator = {
   },
 
   /*
+   * Fetches the most recently created key pair for the given domain, decrypts them
+   * using the encryption key and returns the pair as a hash.
+   *
+   * @param domain the domain to fetch keys for
+   * @return hash of the public and private key pair or null if the domain doesn't have a key pair
+   */
+  fetch_key_pair: function(domain) {
+    try {
+      var statement = this.db.createstatement("SELECT public_key, private_key, domain FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=':domain' ORDER BY k.created DESC");
+    } catch (e) {
+      this.log(this.db.lastErrorString);
+      return;
+    }
+
+    try {
+      // Bind the parameter
+      statement.params.domain = domain;
+
+      // Execute the query synchronously
+      statement.executeStep();
+      var fetched_keys = statement.row;
+      if (domain === fetched_keys.domain) {
+        var encryption_key = this.get_encryption_key();
+        key_pair = {
+          'public_key': this.decrypt_aes(encryption_key, fetched_keys.public_key),
+          'private_key': this.decrypt_aes(encryption_key, fetched_keys.private_key),
+        };
+      }
+    } catch (ex) {
+      key_pair = null;
+    }
+    statement.finalize();
+    return key_pair;
+  },
+
+  /*
    * This function stores the key in the browser's password manager
    *
    * @param key the key to store
@@ -513,54 +585,6 @@ var Foamicator = {
     }
     statement.finalize();
     return domain_exists;
-  },
-
-  /*
-   * The main function used to login to the website. It fetches the encryption key,
-   * the most recently created key from the database, decrypts the keys, and then
-   * uses them to login to the website.
-   *
-   * The database query and the login are handled asynchronously.
-   *
-   * @param domain the domain of the page to login to
-   */
-  login_to_domain: function(domain) {
-    var foam = this;
-
-    // Create the statement to fetch the most recently created key for this domain
-    var statement = this.db.createStatement("SELECT k.public_key, k.private_key FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=':domain' ORDER BY k.created DESC");
-    // Bind the parameter
-    statement.params.domain = domain;
-
-    // Execute the query asynchronously
-    statement.executeAsync({
-      handleResult: function(resultSet) {
-        var row = resultSet.getNextRow();
-
-        var encrypted_keys = {
-          'public_key': row.getResultByName("k.public_key"),
-          'private_key': row.getResultByName("k.private_key"),
-        };
-
-        var master_key = foam.get_encryption_key();
-
-        var decrypted_keys = {
-          'public_key': foam.decrypt_rsa(master_key, encrypted_keys['public_key']),
-          'private_key': foam.decrypt_rsa(master_key, encrypted_keys['private_key']),
-        };
-
-        authenticate(decrypted_keys);
-      },
-
-      handleError: function(error) {
-        foam.log("Database Error: " + error.message);
-      },
-
-      handleCompletion: function(reason) {
-        if (reason != Components.interfaces.mozIStorageStatementCallback.REASON_FINISHED)
-          foam.log("Query canceled or aborted!");
-      },
-    });
   },
 
   /*
