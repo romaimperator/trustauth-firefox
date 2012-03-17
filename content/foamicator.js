@@ -29,7 +29,7 @@ var Foamicator = {
       var domain = this.get_domain();
 
       // Check to see if this domain already has a key
-      if (this.domain_exists(domain)) {
+      if (this.domain_exist(domain)) {
         // Login if the user already has a key for this site
         this.login_to_domain(domain);
       } else {
