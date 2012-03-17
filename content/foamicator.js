@@ -225,14 +225,6 @@ var Foamicator = {
   },
 
   /*
-   * This function loads the keys from the preferences
-   */
-  load_keys: function() {
-    this.private_key = forge.pki.privateKeyFromPem(this.get_c_pref("priv_key"));
-    this.public_key  = forge.pki.publicKeyFromPem(this.get_c_pref("pub_key"));
-  },
-
-  /*
    * Authenticates this addon with the remote server.
    */
   login: function (event) {
