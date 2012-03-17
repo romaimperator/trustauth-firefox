@@ -580,16 +580,14 @@ var Foamicator = {
       var key_pair = null;
       // Execute the query synchronously
       if (statement.executeStep()) {
-        var fetched_keys = statement.row;
-        if (domain === fetched_keys.domain) {
-          var encryption_key = this.get_encryption_key();
-          key_pair = {
-            'public_key': this.decrypt_aes(encryption_key, fetched_keys.public_key),
-            'private_key': this.decrypt_aes(encryption_key, fetched_keys.private_key),
-          };
-        }
+        var encryption_key = this.get_encryption_key();
+        key_pair = {
+          'public_key': this.decrypt_aes(encryption_key, statement.row.public_key),
+          'private_key': this.decrypt_aes(encryption_key, statement.row.private_key),
+        };
       }
     } catch (ex) {
+      this.dump(ex);
       this.log(this.db.lastErrorString);
     } finally {
       statement.finalize();
