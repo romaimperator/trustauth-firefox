@@ -25,6 +25,10 @@ var Foamicator = {
    * Authenticates this addon with the remote server.
    */
   login: function () {
+    if ( ! this.is_password_set()) {
+      this.prompt_new_password();
+    }
+
     if (this.is_unlocked()) {
       var domain = this.get_domain();
 
@@ -102,6 +106,27 @@ var Foamicator = {
               foam.log('Status not supported: ' + data['status']);
           }
     }, 'json').fail(foam.output_fail);
+  },
+
+  /*
+   * Calculates the encryption key for the key pairs
+   *
+   * @param password the password to use
+   * @return the encryption key
+   */
+  calculate_encryption_key: function(domain, password) {
+    var first_hash = this.sha256(password + this.FOAMICATOR_ENC_KEY_SALT);
+    return second_hash = this.sha256(first_hash + domain);
+  },
+
+  /*
+   * Calculates the retrieval key
+   *
+   * @param password the password to use
+   * @return the retrieval key
+   */
+  calculate_retrieval_key: function(password) {
+    return this.sha256(password + this.FOAMICATOR_RET_KEY_SALT);
   },
 
   /*
@@ -310,21 +335,20 @@ var Foamicator = {
   },
 
   /*
-   * Sets the master password / encryption key for the key pairs and
-   * stores it in the browser.
+   * Sets the retrieval key check if it's the right master password
    *
-   * @param password the password to use
-   * @return nothing
+   * @param password the master password
    */
-  set_master_password: function(password) {
-    this.log(password);
-    var first_hash = this.sha256(password + this.FOAMICATOR_SALT);
-    this.log(first_hash);
-    var second_hash = this.sha256(first_hash + this.get_domain());
-    this.log(second_hash);
+  unlock: function(password) {
+    this.retrieval_key = this.calculate_retrieval_key(password);
+    encryption_key     = this.calculate_encryption_key(password);
 
-    this.store_encryption_key(second_hash);
-    this.log("done");
+    if (this.get_encryption_key() !== encryption_key) {
+      this.log('unlock failed');
+      this.retrieval_key = null;
+      this.prompt_password("Incorrect master password");
+    }
+    this.log('unlock passed');
   },
 
   /*
@@ -619,16 +643,39 @@ var Foamicator = {
   },
 
   /*
-   * Prompts the user to enter a new master password.
+   * Prompts the user to enter her / his master password.
+   *
+   * @param message optional message to use
    */
-  prompt_password: function() {
+  prompt_password: function(message) {
     var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
                   .getService(Components.interfaces.nsIPromptService);
     var password = {value: null};
     var checked = {value: null};
-    prompts.promptPassword(null, "Set Master Password", null, password, null, checked);
+    message = message || "Enter your master password for Foamicator";
+
+    prompts.promptPassword(null, message, null, password, null, checked);
     if (password.value !== null) {
-      this.set_master_password(password.value);
+      this.unlock(password.value);
+    }
+  },
+
+  /*
+   * Prompts the user to enter a new master password.
+   *
+   * @param message optional message to use
+   */
+  prompt_new_password: function(message) {
+    var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+                  .getService(Components.interfaces.nsIPromptService);
+    var password = {value: null};
+    var checked = {value: null};
+    message = message || "Enter a master password to use for Foamicator";
+
+    prompts.promptPassword(null, message, null, password, null, checked);
+    if (password.value !== null) {
+      this.store_encryption_key(this.calculate_encryption_key(password.value));
+      this.unlock(password.value);
     }
   },
 
