@@ -445,12 +445,12 @@ var Foamicator = {
     Components.utils.import("resource://gre/modules/FileUtils.jsm");
 
     // Establish a connection to the database
-    var file = FileUtils.getFile("CurProcD", ["foamicate.sqlite"]);
+    var file = FileUtils.getFile("ProfD", ["foamicator", "foamicate.sqlite"]);
     var file_exists = file.exists();
     this.db  = Services.storage.openDatabase(file);
     //if ( ! file_exists) {
       this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
-      this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT)");
+      this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
       this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
     //}
   },
