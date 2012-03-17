@@ -581,30 +581,28 @@ var Foamicator = {
    */
   fetch_key_pair: function(domain) {
     try {
-      var statement = this.db.createStatement("SELECT public_key, private_key, domain FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
-    } catch (e) {
-      this.log(this.db.lastErrorString);
-      return;
-    }
+      var statement = this.db.createStatement("SELECT public_key, private_key FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
 
-    try {
       // Bind the parameter
       statement.params.domain = domain;
 
+      var key_pair = null;
       // Execute the query synchronously
-      statement.executeStep();
-      var fetched_keys = statement.row;
-      if (domain === fetched_keys.domain) {
-        var encryption_key = this.get_encryption_key();
-        key_pair = {
-          'public_key': this.decrypt_aes(encryption_key, fetched_keys.public_key),
-          'private_key': this.decrypt_aes(encryption_key, fetched_keys.private_key),
-        };
+      if (statement.executeStep()) {
+        var fetched_keys = statement.row;
+        if (domain === fetched_keys.domain) {
+          var encryption_key = this.get_encryption_key();
+          key_pair = {
+            'public_key': this.decrypt_aes(encryption_key, fetched_keys.public_key),
+            'private_key': this.decrypt_aes(encryption_key, fetched_keys.private_key),
+          };
+        }
       }
     } catch (ex) {
-      key_pair = null;
+      this.log(this.db.lastErrorString);
+    } finally {
+      statement.finalize();
     }
-    statement.finalize();
     return key_pair;
   },
 
