@@ -75,7 +75,7 @@ var Foamicator = {
           if (data['status'] === foam.STATUS['stage_fail']) {
               // The server says we were in the middle of a previous authentication so try again.
               foam.log(data['error']);
-              foam.login(event);
+              foam.authenticate(keys);
               return;
           } else if (data['status'] === foam.STATUS['auth']) {
               //foam.log('secret: ' + data['secret']);
