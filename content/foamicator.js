@@ -39,6 +39,8 @@ var Foamicator = {
       } else {
         // Create a new key and store it in the database for this domain
         this.generate_key_pair(domain);
+        // Then login with the new pair
+        this.login_to_domain(domain);
       }
     } else {
       this.prompt_password();
