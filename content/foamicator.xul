@@ -20,13 +20,8 @@
   <script type="application/javascript" src="chrome://foamicator/content/foamicator.js"/>
 
   <statusbar id="status-bar">
-      <statusbarpanel id="foamicator-panel" label="&menutitle;" >
-          <button label="Login" oncommand="Foamicator.login(event);" />
-      </statusbarpanel>
+    <statusbarpanel id="foamicator-panel" label="&menutitle;" >
+      <label id="foamicator-status" value=""/>
+    </statusbarpanel>
   </statusbar>
-
-  <menupopup id="menu_ToolsPopup">
-    <menuitem id="foamicator-menu" label="&menutitle;"
-      oncommand="alert('&menutitle;');" />
-  </menupopup>
 </overlay>
