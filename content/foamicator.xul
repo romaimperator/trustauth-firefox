@@ -18,17 +18,4 @@
   <script type="application/javascript" src="chrome://foamicator/content/rsa.js"/>
   <script type="application/javascript" src="chrome://foamicator/content/pki.js"/>
   <script type="application/javascript" src="chrome://foamicator/content/foamicator.js"/>
-
-  <statusbar id="status-bar">
-      <statusbarpanel id="foamicator-panel" label="&menutitle;" >
-          <button id="foamicator-login" label="Login" oncommand="Foamicator.login(event);" />
-          <button label="Test" oncommand="alert(Foamicator.domain_exist(content.document.domain));"/>
-          <button label="Change" oncommand="Foamicator.set_button_text('yomana');"/>
-      </statusbarpanel>
-  </statusbar>
-
-  <menupopup id="menu_ToolsPopup">
-    <menuitem id="foamicator-menu" label="&menutitle;"
-      oncommand="alert('&menutitle;');" />
-  </menupopup>
 </overlay>

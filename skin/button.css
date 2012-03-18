@@ -1,0 +1,16 @@
+/* common style for all custom buttons */
+.foamicator-button {
+  -moz-image-region: rect( 0px 24px 24px  0px);
+}
+
+.foamicator-button:hover {
+  -moz-image-region: rect(24px 24px 48px  0px);
+}
+
+[iconsize="small"] .foamicator-button {
+  -moz-image-region: rect( 0px 40px 16px 24px);
+}
+
+[iconsize="small"] .foamicator-button:hover {
+  -moz-image-region: rect(24px 40px 40px 24px);
+}
