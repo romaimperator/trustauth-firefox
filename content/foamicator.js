@@ -393,7 +393,7 @@ var Foamicator = {
    * Outputs the error mesasge if the post request failed.
    */
   output_fail: function(msg, textStatus, errorThrown) {
-    this.log(msg.status + ";" + msg.statusText + ";" + msg.responseXML);
+    Foamicator.log(msg.status + ";" + msg.statusText + ";" + msg.responseXML);
   },
 
   /*
