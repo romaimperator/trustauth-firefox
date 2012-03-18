@@ -42,8 +42,10 @@ var Foamicator = {
           this.login_to_domain(domain);
         }
       } else {
-        this.prompt_password();
-        this.login();
+        if (this.prompt_password()) {
+          this.unlock();
+          this.login();
+        }
       }
     }
   },
@@ -397,21 +399,22 @@ var Foamicator = {
   },
 
   /*
-   * Sets the retrieval key check if it's the right master password
-   *
-   * @param password the master password
+   * Unlocks the addon to use the keys stored in the database.
    */
-  unlock: function(password) {
-    encryption_key = this.calculate_encryption_key(password);
-
-    if (this.get_encryption_key() === encryption_key) {
+  unlock: function() {
       this.log('unlock passed');
       this.unlocked = true;
-    } else {
-      this.log('unlock failed');
-      this.unlocked = false;
-      this.prompt_password("Incorrect master password");
-    }
+  },
+
+  /*
+   * Checks to see if the password entered is the correct master password.
+   *
+   * @paraam password the password to check
+   * @return true if the password is correct false otherwise
+   */
+  verify_password: function(password) {
+    var encryption_key = this.calculate_encryption_key(password);
+    return this.get_encryption_key() === encryption_key;
   },
 
 
@@ -709,21 +712,24 @@ var Foamicator = {
   },
 
   /*
-   * Prompts the user to enter her / his master password.
+   * Prompts the user to enter her / his master password until the correct password
+   * is entered or the user cancels the prompt.
    *
-   * @param message optional message to use
+   * @return true if the user entered the correct password, false otherwise
    */
-  prompt_password: function(message) {
+  prompt_password: function() {
     var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
                   .getService(Components.interfaces.nsIPromptService);
     var password = {value: null};
     var checked = {value: null};
-    message = message || "Enter your master password for Foamicator";
 
-    prompts.promptPassword(null, message, null, password, null, checked);
-    if (password.value !== null) {
-      this.unlock(password.value);
+    prompts.promptPassword(null, "Enter your master password for Foamicator", null, password, null, checked);
+    if (password.value === null) return false;
+    while ( ! this.verify_password(password.value)) {
+      prompts.promptPassword(null, "Incorrect master password", null, password, null, checked);
+      if (password.value === null) return false;
     }
+    return true;
   },
 
   set_b_pref: function(preference, value) {
