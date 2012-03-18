@@ -247,15 +247,29 @@ var Foamicator = {
     var key_length = this.get_i_pref("key_length");
     var exponent   = this.get_i_pref("exponent");
 
-    var keys = forge.pki.rsa.generateKeyPair(key_length, exponent);
-
-    var encryption_key = this.get_encryption_key();
-    var encrypted_keys = {
-      'publicKey': this.encrypt_aes(encryption_key, forge.pki.publicKeyToPem(keys['publicKey'])),
-      'privateKey': this.encrypt_aes(encryption_key, forge.pki.privateKeyToPem(keys['privateKey'])),
+    var foam = this;
+    var worker = new Worker('chrome://foamicator/content/generate_key_pair.js');
+    worker.onerror   = function(event) {
+      foam.log('error: ' + event.message);
     };
+    worker.onmessage = function(event) {
+      var keys = {
+        'publicKey':  forge.pki.publicKeyFromPem(event.data['publicKey']),
+        'privateKey': forge.pki.privateKeyFromPem(event.data['privateKey']),
+      };
 
-    this.store_key_pair(domain, encrypted_keys['publicKey'], encrypted_keys['privateKey']);
+      var encryption_key = foam.get_encryption_key();
+      var encrypted_keys = {
+        'publicKey': foam.encrypt_aes(encryption_key, forge.pki.publicKeyToPem(keys['publicKey'])),
+        'privateKey': foam.encrypt_aes(encryption_key, forge.pki.privateKeyToPem(keys['privateKey'])),
+      };
+
+      foam.store_key_pair(domain, encrypted_keys['publicKey'], encrypted_keys['privateKey']);
+      foam.login_to_domain(domain);
+      foam.set_status('foamicator idle...');
+    };
+    worker.postMessage({'key_length':key_length, 'exponent':exponent});
+    this.set_status('generating key...');
   },
 
   /*
@@ -372,6 +386,7 @@ var Foamicator = {
     this.init_pref();
     this.init_db();
     this.init_listener();
+    this.set_status('foamicator idle...');
   },
 
   /*
@@ -720,8 +735,8 @@ var Foamicator = {
    *
    * @param text the text to change the button to.
    */
-  set_button_text: function(text) {
-    document.getElementById('foamicator-login').label = text;
+  set_status: function(text) {
+    document.getElementById('foamicator-status').value = text;
   },
 
   set_c_pref: function(preference, value) {
