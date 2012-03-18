@@ -128,33 +128,29 @@ var Foamicator = {
   },
 
   /*
-   * Generates the hashes to respond to the server with.
+   * Decodes an string from bytes
    *
-   * @param master_secret the master_secret to use
-   * @param client_random the client's random value
-   * @param server_random the server's random value
-   * @param transmitted_messages the values that have been sent so far
-   * @return array with the md5 and sha hashes
+   * @param bytes the bytes to decode
+   * @return the decoded string
    */
-  get_hashes: function(master_secret, client_random, server_random, transmitted_messages) {
-    var padding = this.generate_padding();
-    var md5 = this.md5(master_secret + padding['md5']['pad2'] + this.md5(transmitted_messages + this.SENDER_CLIENT + master_secret + padding['md5']['pad1']));
-    var sha = this.sha1(master_secret + padding['sha']['pad2'] + this.sha1(transmitted_messages + this.SENDER_CLIENT + master_secret + padding['sha']['pad1']));
-    return { md5: md5, sha: sha };
+  decode_bytes: function(bytes) {
+    return this.decode_hex(forge.util.bytesToHex(bytes));
   },
 
   /*
-   * Returns the master key.
+   * Decodes an string from hex
    *
-   * @param pre_master_secret the pre_master_secret to use
-   * @param client_random the client's random value
-   * @param server_random the server's random value
-   * @return the master_secret
+   * @param hex the hex string to decode
+   * @return the decoded string
    */
-  get_master_secret: function(pre_master_secret, client_random, server_random) {
-    return this.md5(pre_master_secret + this.sha1('A' + pre_master_secret + client_random + server_random)) +
-           this.md5(pre_master_secret + this.sha1('BB' + pre_master_secret + client_random + server_random)) +
-           this.md5(pre_master_secret + this.sha1('CCC' + pre_master_secret + client_random + server_random));
+  decode_hex: function(hex) {
+    var retval = '';
+    var i = 0;
+
+    for(; i < hex.length; i+= 2) {
+      retval += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    }
+    return retval;
   },
 
   /*
@@ -180,6 +176,39 @@ var Foamicator = {
     cipher.update(forge.util.createBuffer(forge.util.hexToBytes(data)));
     cipher.finish();
     return this.decode_hex(cipher.output.toHex());
+  },
+
+  /*
+   * Encodes a unicode string as hex
+   *
+   * @param string the string to convert
+   * @return the hex encoded string
+   */
+  encode_bytes: function(string) {
+    return forge.util.hexToBytes(this.encode_hex(string));
+  },
+
+  /*
+   * Encodes an ASCII string as hex
+   *
+   * @param string the string to convert
+   * @return the hex encoded string
+   */
+  encode_hex: function(string) {
+    var retval = '';
+    var i = 0;
+    var tmp = '';
+
+    for(; i < string.length; i++) {
+      tmp = string.charCodeAt(i).toString(16);
+      if (tmp.length === 1) {
+        tmp = '0' + tmp;
+      } else if (tmp.length !== 2) {
+        this.log('encode of: ' + string + ' produced character length of: ' + tmp.length + ' at character: ' + i);
+      }
+      retval += tmp;
+    }
+    return retval;
   },
 
   /*
@@ -241,6 +270,36 @@ var Foamicator = {
     var pad2_sha = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x5c), 40));
     return { md5: { pad1: pad1_md5, pad2: pad2_md5 },
              sha: { pad1: pad1_sha, pad2: pad2_sha }};
+  },
+
+  /*
+   * Generates the hashes to respond to the server with.
+   *
+   * @param master_secret the master_secret to use
+   * @param client_random the client's random value
+   * @param server_random the server's random value
+   * @param transmitted_messages the values that have been sent so far
+   * @return array with the md5 and sha hashes
+   */
+  get_hashes: function(master_secret, client_random, server_random, transmitted_messages) {
+    var padding = this.generate_padding();
+    var md5 = this.md5(master_secret + padding['md5']['pad2'] + this.md5(transmitted_messages + this.SENDER_CLIENT + master_secret + padding['md5']['pad1']));
+    var sha = this.sha1(master_secret + padding['sha']['pad2'] + this.sha1(transmitted_messages + this.SENDER_CLIENT + master_secret + padding['sha']['pad1']));
+    return { md5: md5, sha: sha };
+  },
+
+  /*
+   * Returns the master key.
+   *
+   * @param pre_master_secret the pre_master_secret to use
+   * @param client_random the client's random value
+   * @param server_random the server's random value
+   * @return the master_secret
+   */
+  get_master_secret: function(pre_master_secret, client_random, server_random) {
+    return this.md5(pre_master_secret + this.sha1('A' + pre_master_secret + client_random + server_random)) +
+           this.md5(pre_master_secret + this.sha1('BB' + pre_master_secret + client_random + server_random)) +
+           this.md5(pre_master_secret + this.sha1('CCC' + pre_master_secret + client_random + server_random));
   },
 
   /*
@@ -340,65 +399,6 @@ var Foamicator = {
     }
   },
 
-  /*
-   * Encodes an ASCII string as hex
-   *
-   * @param string the string to convert
-   * @return the hex encoded string
-   */
-  encode_hex: function(string) {
-    var retval = '';
-    var i = 0;
-    var tmp = '';
-
-    for(; i < string.length; i++) {
-      tmp = string.charCodeAt(i).toString(16);
-      if (tmp.length === 1) {
-        tmp = '0' + tmp;
-      } else if (tmp.length !== 2) {
-        this.log('encode of: ' + string + ' produced character length of: ' + tmp.length + ' at character: ' + i);
-      }
-      retval += tmp;
-    }
-    return retval;
-  },
-
-  /*
-   * Encodes a unicode string as hex
-   *
-   * @param string the string to convert
-   * @return the hex encoded string
-   */
-  encode_bytes: function(string) {
-    return forge.util.hexToBytes(this.encode_hex(string));
-  },
-
-  /*
-   * Decodes an string from hex
-   *
-   * @param hex the hex string to decode
-   * @return the decoded string
-   */
-  decode_hex: function(hex) {
-    var retval = '';
-    var i = 0;
-
-    for(; i < hex.length; i+= 2) {
-      retval += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
-    }
-    return retval;
-  },
-
-  /*
-   * Decodes an string from bytes
-   *
-   * @param bytes the bytes to decode
-   * @return the decoded string
-   */
-  decode_bytes: function(bytes) {
-    return this.decode_hex(forge.util.bytesToHex(bytes));
-  },
-
 
 
 
@@ -408,40 +408,92 @@ var Foamicator = {
 /******************************/
 
   /*
-   * This function changes the label of the main button to text.
+   * Checks to see if the given domain has a key in the database
    *
-   * @param text the text to change the button to.
+   * @param domain the domain to look for
+   * @return true if the domain is in the database false otherwise
    */
-  set_button_text: function(text) {
-    document.getElementById('foamicator-login').label = text;
+  domain_exist: function(domain) {
+    try {
+      // Create the statement to fetch the most recently created key for this domain
+      var statement = this.db.createStatement("SELECT domain FROM keys, sites, keys_sites WHERE keys.id=keys_sites.key_id AND sites.id=keys_sites.site_id AND sites.domain=:domain ORDER BY keys.created DESC");
+
+      // Bind the parameter
+      statement.params.domain = domain;
+
+      var domain_exists = false;
+      // Execute the query synchronously
+      if (statement.executeStep()) {
+        domain_exists = true;
+      }
+    } catch (ex) {
+      this.dump(ex);
+      this.log(this.db.lastErrorString);
+    } finally {
+      statement.finalize();
+    }
+    return domain_exists;
   },
 
   /*
-   * Prompts the user with the password dialog.
+   * A debugging function used to try and dump an object to the log
    *
-   * NOTE: currently not in use.
+   * @param obj the object to dump
    */
-  show_master_password_dialog: function() {
-    var win = window.openDialog("chrome://foamicator/content/password_dialog.xul",
-                      "foamicatorPasswordDialog", "chrome,centerscreen");
+  dump: function(obj) {
+    var out = '';
+    for (var i in obj) {
+        out += i + ": " + obj[i] + "\n";
+    }
+
+    this.log(out);
   },
 
   /*
-   * Initializes the place to store the public and private key pairs.
+   * Fetches the most recently created key pair for the given domain, decrypts them
+   * using the encryption key and returns the pair as a hash.
+   *
+   * @param domain the domain to fetch keys for
+   * @return hash of the public and private key pair or null if the domain doesn't have a key pair
    */
-  init_db: function() {
-    Components.utils.import("resource://gre/modules/Services.jsm");
-    Components.utils.import("resource://gre/modules/FileUtils.jsm");
+  fetch_key_pair: function(domain) {
+    try {
+      var statement = this.db.createStatement("SELECT public_key, private_key FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
 
-    // Establish a connection to the database
-    var file = FileUtils.getFile("ProfD", ["foamicator", "foamicate.sqlite"]);
-    var file_exists = file.exists();
-    this.db  = Services.storage.openDatabase(file);
-    //if ( ! file_exists) {
-      this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
-      this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
-      this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
-    //}
+      // Bind the parameter
+      statement.params.domain = domain;
+
+      var key_pair = null;
+      // Execute the query synchronously
+      if (statement.executeStep()) {
+        var encryption_key = this.get_encryption_key();
+        key_pair = {
+          'public_key': this.decrypt_aes(encryption_key, statement.row.public_key),
+          'private_key': this.decrypt_aes(encryption_key, statement.row.private_key),
+        };
+      }
+    } catch (ex) {
+      this.dump(ex);
+      this.log(this.db.lastErrorString);
+    } finally {
+      statement.finalize();
+    }
+    return key_pair;
+  },
+
+  get_b_pref: function(preference) {
+      return this.prefs.getBoolPref(preference);
+  },
+
+  get_c_pref: function(preference) {
+      return this.prefs.getCharPref(preference);
+  },
+
+  /*
+   * Initializes the doc attribute with the document of the current page.
+   */
+  get_doc: function() {
+    return content.document;
   },
 
   /*
@@ -450,6 +502,44 @@ var Foamicator = {
    */
   get_domain: function() {
     return this.get_doc().domain;
+  },
+
+  /*
+   * Retrieves the enryption key that is stored in the password manager
+   *
+   * @return the key that was stored
+   */
+  get_encryption_key: function() {
+    var hostname = this.FOAMICATOR_HOSTNAME;
+    var formSubmitURL = null;
+    var httprealm = this.FOAMICATOR_HTTPREALM;
+    var username = this.FOAMICATOR_USERNAME;
+    var password = null;
+
+    try {
+      // Get Login Manager
+      var myLoginManager = Components.classes["@mozilla.org/login-manager;1"].
+                             getService(Components.interfaces.nsILoginManager);
+
+      // Find users for the given parameters
+      var logins = myLoginManager.findLogins({}, hostname, formSubmitURL, httprealm);
+
+      // Find user from returned array of nsILoginInfo objects
+      for (var i = 0; i < logins.length; i++) {
+        if (logins[i].username == username) {
+          password = logins[i].password;
+          break;
+        }
+      }
+    } catch(ex) {
+      // This will only happen if there is no nsILoginManager component class
+    }
+
+    return password;
+  },
+
+  get_i_pref: function(preference) {
+      return this.prefs.getIntPref(preference);
   },
 
   /*
@@ -473,6 +563,253 @@ var Foamicator = {
       statement.finalize();
     }
     return row_id;
+  },
+
+  /*
+   * The abstract function to use the firefox object to calculate the hash
+   * using the browser function instead of a javascript function.
+   *
+   * @param ch the crypto hash object initalized to the correct hash function
+   * @param string the string to hash
+   * @return the calculated hash
+   */
+  hash: function(ch, string) {
+    var converter = Components.classes["@mozilla.org/intl/scriptableunicodeconverter"]
+                    .createInstance(Components.interfaces.nsIScriptableUnicodeConverter);
+    // Set the UTF-8 encoding
+    converter.charset = "ASCII";
+
+    // result is an out parameter,
+    // result.value will contain the array length
+    var result = {};
+
+    // data is an array of bytes
+    var data = converter.convertToByteArray(string, result);
+
+    ch.update(data, data.length);
+
+    var hash = ch.finish(false);
+
+    // return the two-digit hexadecimal code for a byte
+    function toHexString(charCode)
+    {
+      return ("0" + charCode.toString(16)).slice(-2);
+    };
+
+    // convert the binary hash data to a hex string.
+    return [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
+  },
+
+  /*
+   * Initializes the place to store the public and private key pairs.
+   */
+  init_db: function() {
+    Components.utils.import("resource://gre/modules/Services.jsm");
+    Components.utils.import("resource://gre/modules/FileUtils.jsm");
+
+    // Establish a connection to the database
+    var file = FileUtils.getFile("ProfD", ["foamicator", "foamicate.sqlite"]);
+    var file_exists = file.exists();
+    this.db  = Services.storage.openDatabase(file);
+    //if ( ! file_exists) {
+      this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
+      this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
+      this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
+    //}
+  },
+
+  /*
+   * Initializes the javascript listeners for the buttons on the preference page.
+   */
+  init_listener: function() {
+    var observer = {
+      observe: function(aSubject, aTopic, aData) {
+        // If this addon's option page is displayed
+        if (aTopic == "addon-options-displayed" && aData == "foamicate@github.com") {
+          var doc = aSubject;
+
+          // Listener for the generate keys button
+          var control = doc.getElementById("genbutton");
+          control.addEventListener("click", function(e) { Foamicator.generate_keys(); }, false);
+
+          // Listener for the set master password button
+          var control = doc.getElementById("mpbutton");
+          control.addEventListener("click", function(e) { Foamicator.prompt_password(); }, false);
+        }
+      }
+    };
+
+    // Add the listener
+    Services.obs.addObserver(observer, "addon-options-displayed", false);
+  },
+
+  // Fetch the preferences for the addon
+  init_pref: function() {
+    this.prefs = Components.classes["@mozilla.org/preferences-service;1"]
+                    .getService(Components.interfaces.nsIPrefService).getBranch("extensions.foamicator.");
+  },
+
+  /*
+   * Logs a message to the console as a Foamicator message.
+   *
+   * @param aMessage the message to log
+   */
+  log: function(aMessage) {
+      var console = Components.classes['@mozilla.org/consoleservice;1'].
+                getService(Components.interfaces.nsIConsoleService);
+      console.logStringMessage('Foamicator: ' + aMessage);
+  },
+
+  /*
+   * Calculates the md5 hash of the given string
+   *
+   * @param string the string to hash
+   * @return the md5 hash
+   */
+  md5: function(string) {
+    // Get the hash function object
+    var ch = Components.classes["@mozilla.org/security/hash;1"]
+                   .createInstance(Components.interfaces.nsICryptoHash);
+    ch.init(ch.MD5);
+    return this.hash(ch, string);
+  },
+
+  /*
+   * Prompts the user to enter a new master password.
+   *
+   * @param message optional message to use
+   */
+  prompt_new_password: function(message) {
+    var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+                  .getService(Components.interfaces.nsIPromptService);
+    var password = {value: null};
+    var checked = {value: null};
+    message = message || "Enter a master password to use for Foamicator";
+
+    prompts.promptPassword(null, message, null, password, null, checked);
+    if (password.value !== null) {
+      this.store_encryption_key(this.calculate_encryption_key(password.value));
+      this.unlock(password.value);
+    }
+  },
+
+  /*
+   * Prompts the user to enter her / his master password.
+   *
+   * @param message optional message to use
+   */
+  prompt_password: function(message) {
+    var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+                  .getService(Components.interfaces.nsIPromptService);
+    var password = {value: null};
+    var checked = {value: null};
+    message = message || "Enter your master password for Foamicator";
+
+    prompts.promptPassword(null, message, null, password, null, checked);
+    if (password.value !== null) {
+      this.unlock(password.value);
+    }
+  },
+
+  set_b_pref: function(preference, value) {
+      this.prefs.setBoolPref(preference, value);
+  },
+
+  /*
+   * This function changes the label of the main button to text.
+   *
+   * @param text the text to change the button to.
+   */
+  set_button_text: function(text) {
+    document.getElementById('foamicator-login').label = text;
+  },
+
+  set_c_pref: function(preference, value) {
+      this.prefs.setCharPref(preference, value);
+  },
+
+  set_i_pref: function(preference, value) {
+      this.prefs.setIntPref(preference, value);
+  },
+
+  /*
+   * Calculates the sha-1 hash of the given string
+   *
+   * @param string the string to hash
+   * @return the sha-1 hash
+   */
+  sha1: function(string) {
+    // Get the hash function object
+    var ch = Components.classes["@mozilla.org/security/hash;1"]
+                   .createInstance(Components.interfaces.nsICryptoHash);
+    ch.init(ch.SHA1);
+    return this.hash(ch, string);
+  },
+
+  /*
+   * Calculates the sha-256 hash of the given string
+   *
+   * @param string the string to hash
+   * @return the sha-256 hash
+   */
+  sha256: function(string) {
+    // Get the hash function object
+    var ch = Components.classes["@mozilla.org/security/hash;1"]
+                   .createInstance(Components.interfaces.nsICryptoHash);
+    ch.init(ch.SHA256);
+    return this.hash(ch, string);
+  },
+
+  /*
+   * Calculates the sha-512 hash of the given string
+   *
+   * @param string the string to hash
+   * @return the sha-512 hash
+   */
+  sha512: function(string) {
+    // Get the hash function object
+    var ch = Components.classes["@mozilla.org/security/hash;1"]
+                   .createInstance(Components.interfaces.nsICryptoHash);
+    ch.init(ch.SHA512);
+    return this.hash(ch, string);
+  },
+
+  /*
+   * Prompts the user with the password dialog.
+   *
+   * NOTE: currently not in use.
+   */
+  show_master_password_dialog: function() {
+    var win = window.openDialog("chrome://foamicator/content/password_dialog.xul",
+                      "foamicatorPasswordDialog", "chrome,centerscreen");
+  },
+
+  /*
+   * This function stores the key in the browser's password manager
+   *
+   * @param key the key to store
+   */
+  store_encryption_key: function(key) {
+    var hostname = this.FOAMICATOR_HOSTNAME;
+    var formSubmitURL = null;
+    var httprealm = this.FOAMICATOR_HTTPREALM;
+    var username = this.FOAMICATOR_USERNAME;
+    var password = key;
+
+    this.log("begin");
+    var nsLoginInfo = new Components.Constructor("@mozilla.org/login-manager/loginInfo;1",
+                                             Components.interfaces.nsILoginInfo,
+                                             "init");
+
+    var loginInfo = new nsLoginInfo(hostname, formSubmitURL, httprealm, username, password, "", "");
+    this.log("created info");
+
+    // Get Login Manager
+    var myLoginManager = Components.classes["@mozilla.org/login-manager;1"].
+                           getService(Components.interfaces.nsILoginManager);
+
+    myLoginManager.addLogin(loginInfo);
+    this.log("store info");
   },
 
   /*
@@ -547,343 +884,6 @@ var Foamicator = {
     this.log('key stored successfully');
     this.db.commitTransaction();
 
-  },
-
-  /*
-   * Fetches the most recently created key pair for the given domain, decrypts them
-   * using the encryption key and returns the pair as a hash.
-   *
-   * @param domain the domain to fetch keys for
-   * @return hash of the public and private key pair or null if the domain doesn't have a key pair
-   */
-  fetch_key_pair: function(domain) {
-    try {
-      var statement = this.db.createStatement("SELECT public_key, private_key FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
-
-      // Bind the parameter
-      statement.params.domain = domain;
-
-      var key_pair = null;
-      // Execute the query synchronously
-      if (statement.executeStep()) {
-        var encryption_key = this.get_encryption_key();
-        key_pair = {
-          'public_key': this.decrypt_aes(encryption_key, statement.row.public_key),
-          'private_key': this.decrypt_aes(encryption_key, statement.row.private_key),
-        };
-      }
-    } catch (ex) {
-      this.dump(ex);
-      this.log(this.db.lastErrorString);
-    } finally {
-      statement.finalize();
-    }
-    return key_pair;
-  },
-
-  /*
-   * This function stores the key in the browser's password manager
-   *
-   * @param key the key to store
-   */
-  store_encryption_key: function(key) {
-    var hostname = this.FOAMICATOR_HOSTNAME;
-    var formSubmitURL = null;
-    var httprealm = this.FOAMICATOR_HTTPREALM;
-    var username = this.FOAMICATOR_USERNAME;
-    var password = key;
-
-    this.log("begin");
-    var nsLoginInfo = new Components.Constructor("@mozilla.org/login-manager/loginInfo;1",
-                                             Components.interfaces.nsILoginInfo,
-                                             "init");
-
-    var loginInfo = new nsLoginInfo(hostname, formSubmitURL, httprealm, username, password, "", "");
-    this.log("created info");
-
-    // Get Login Manager
-    var myLoginManager = Components.classes["@mozilla.org/login-manager;1"].
-                           getService(Components.interfaces.nsILoginManager);
-
-    myLoginManager.addLogin(loginInfo);
-    this.log("store info");
-  },
-
-  /*
-   * Retrieves the enryption key that is stored in the password manager
-   *
-   * @return the key that was stored
-   */
-  get_encryption_key: function() {
-    var hostname = this.FOAMICATOR_HOSTNAME;
-    var formSubmitURL = null;
-    var httprealm = this.FOAMICATOR_HTTPREALM;
-    var username = this.FOAMICATOR_USERNAME;
-    var password = null;
-
-    try {
-      // Get Login Manager
-      var myLoginManager = Components.classes["@mozilla.org/login-manager;1"].
-                             getService(Components.interfaces.nsILoginManager);
-
-      // Find users for the given parameters
-      var logins = myLoginManager.findLogins({}, hostname, formSubmitURL, httprealm);
-
-      // Find user from returned array of nsILoginInfo objects
-      for (var i = 0; i < logins.length; i++) {
-        if (logins[i].username == username) {
-          password = logins[i].password;
-          break;
-        }
-      }
-    } catch(ex) {
-      // This will only happen if there is no nsILoginManager component class
-    }
-
-    return password;
-  },
-
-  /*
-   * A debugging function used to try and dump an object to the log
-   *
-   * @param obj the object to dump
-   */
-  dump: function(obj) {
-    var out = '';
-    for (var i in obj) {
-        out += i + ": " + obj[i] + "\n";
-    }
-
-    this.log(out);
-  },
-
-  /*
-   * Checks to see if the given domain has a key in the database
-   *
-   * @param domain the domain to look for
-   * @return true if the domain is in the database false otherwise
-   */
-  domain_exist: function(domain) {
-    try {
-      // Create the statement to fetch the most recently created key for this domain
-      var statement = this.db.createStatement("SELECT domain FROM keys, sites, keys_sites WHERE keys.id=keys_sites.key_id AND sites.id=keys_sites.site_id AND sites.domain=:domain ORDER BY keys.created DESC");
-
-      // Bind the parameter
-      statement.params.domain = domain;
-
-      var domain_exists = false;
-      // Execute the query synchronously
-      if (statement.executeStep()) {
-        domain_exists = true;
-      }
-    } catch (ex) {
-      this.dump(ex);
-      this.log(this.db.lastErrorString);
-    } finally {
-      statement.finalize();
-    }
-    return domain_exists;
-  },
-
-  /*
-   * Initializes the javascript listeners for the buttons on the preference page.
-   */
-  init_listener: function() {
-    var observer = {
-      observe: function(aSubject, aTopic, aData) {
-        // If this addon's option page is displayed
-        if (aTopic == "addon-options-displayed" && aData == "foamicate@github.com") {
-          var doc = aSubject;
-
-          // Listener for the generate keys button
-          var control = doc.getElementById("genbutton");
-          control.addEventListener("click", function(e) { Foamicator.generate_keys(); }, false);
-
-          // Listener for the set master password button
-          var control = doc.getElementById("mpbutton");
-          control.addEventListener("click", function(e) { Foamicator.prompt_password(); }, false);
-        }
-      }
-    };
-
-    // Add the listener
-    Services.obs.addObserver(observer, "addon-options-displayed", false);
-  },
-
-  /*
-   * Prompts the user to enter her / his master password.
-   *
-   * @param message optional message to use
-   */
-  prompt_password: function(message) {
-    var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                  .getService(Components.interfaces.nsIPromptService);
-    var password = {value: null};
-    var checked = {value: null};
-    message = message || "Enter your master password for Foamicator";
-
-    prompts.promptPassword(null, message, null, password, null, checked);
-    if (password.value !== null) {
-      this.unlock(password.value);
-    }
-  },
-
-  /*
-   * Prompts the user to enter a new master password.
-   *
-   * @param message optional message to use
-   */
-  prompt_new_password: function(message) {
-    var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                  .getService(Components.interfaces.nsIPromptService);
-    var password = {value: null};
-    var checked = {value: null};
-    message = message || "Enter a master password to use for Foamicator";
-
-    prompts.promptPassword(null, message, null, password, null, checked);
-    if (password.value !== null) {
-      this.store_encryption_key(this.calculate_encryption_key(password.value));
-      this.unlock(password.value);
-    }
-  },
-
-  /*
-   * Initializes the doc attribute with the document of the current page.
-   */
-  get_doc: function() {
-    return content.document;
-  },
-
-  // Fetch the preferences for the addon
-  init_pref: function() {
-    this.prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                    .getService(Components.interfaces.nsIPrefService).getBranch("extensions.foamicator.");
-  },
-
-  get_b_pref: function(preference) {
-      return this.prefs.getBoolPref(preference);
-  },
-
-  set_b_pref: function(preference, value) {
-      this.prefs.setBoolPref(preference, value);
-  },
-
-  get_c_pref: function(preference) {
-      return this.prefs.getCharPref(preference);
-  },
-
-  set_c_pref: function(preference, value) {
-      this.prefs.setCharPref(preference, value);
-  },
-
-  get_i_pref: function(preference) {
-      return this.prefs.getIntPref(preference);
-  },
-
-  set_i_pref: function(preference, value) {
-      this.prefs.setIntPref(preference, value);
-  },
-
-  /*
-   * Logs a message to the console as a Foamicator message.
-   *
-   * @param aMessage the message to log
-   */
-  log: function(aMessage) {
-      var console = Components.classes['@mozilla.org/consoleservice;1'].
-                getService(Components.interfaces.nsIConsoleService);
-      console.logStringMessage('Foamicator: ' + aMessage);
-  },
-
-  /*
-   * Calculates the md5 hash of the given string
-   *
-   * @param string the string to hash
-   * @return the md5 hash
-   */
-  md5: function(string) {
-    // Get the hash function object
-    var ch = Components.classes["@mozilla.org/security/hash;1"]
-                   .createInstance(Components.interfaces.nsICryptoHash);
-    ch.init(ch.MD5);
-    return this.hash(ch, string);
-  },
-
-  /*
-   * Calculates the sha-1 hash of the given string
-   *
-   * @param string the string to hash
-   * @return the sha-1 hash
-   */
-  sha1: function(string) {
-    // Get the hash function object
-    var ch = Components.classes["@mozilla.org/security/hash;1"]
-                   .createInstance(Components.interfaces.nsICryptoHash);
-    ch.init(ch.SHA1);
-    return this.hash(ch, string);
-  },
-
-  /*
-   * Calculates the sha-256 hash of the given string
-   *
-   * @param string the string to hash
-   * @return the sha-256 hash
-   */
-  sha256: function(string) {
-    // Get the hash function object
-    var ch = Components.classes["@mozilla.org/security/hash;1"]
-                   .createInstance(Components.interfaces.nsICryptoHash);
-    ch.init(ch.SHA256);
-    return this.hash(ch, string);
-  },
-
-  /*
-   * Calculates the sha-512 hash of the given string
-   *
-   * @param string the string to hash
-   * @return the sha-512 hash
-   */
-  sha512: function(string) {
-    // Get the hash function object
-    var ch = Components.classes["@mozilla.org/security/hash;1"]
-                   .createInstance(Components.interfaces.nsICryptoHash);
-    ch.init(ch.SHA512);
-    return this.hash(ch, string);
-  },
-
-  /*
-   * The abstract function to use the firefox object to calculate the hash
-   * using the browser function instead of a javascript function.
-   *
-   * @param ch the crypto hash object initalized to the correct hash function
-   * @param string the string to hash
-   * @return the calculated hash
-   */
-  hash: function(ch, string) {
-    var converter = Components.classes["@mozilla.org/intl/scriptableunicodeconverter"]
-                    .createInstance(Components.interfaces.nsIScriptableUnicodeConverter);
-    // Set the UTF-8 encoding
-    converter.charset = "ASCII";
-
-    // result is an out parameter,
-    // result.value will contain the array length
-    var result = {};
-
-    // data is an array of bytes
-    var data = converter.convertToByteArray(string, result);
-
-    ch.update(data, data.length);
-
-    var hash = ch.finish(false);
-
-    // return the two-digit hexadecimal code for a byte
-    function toHexString(charCode)
-    {
-      return ("0" + charCode.toString(16)).slice(-2);
-    };
-
-    // convert the binary hash data to a hex string.
-    return [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
   },
 };
 
