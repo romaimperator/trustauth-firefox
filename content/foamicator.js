@@ -637,7 +637,7 @@ var Foamicator = {
    * Initializes the javascript listeners for the buttons on the preference page.
    */
   init_listener: function() {
-    var observer = {
+    /*var observer = {
       observe: function(aSubject, aTopic, aData) {
         // If this addon's option page is displayed
         if (aTopic == "addon-options-displayed" && aData == "foamicate@github.com") {
@@ -655,7 +655,7 @@ var Foamicator = {
     };
 
     // Add the listener
-    Services.obs.addObserver(observer, "addon-options-displayed", false);
+    Services.obs.addObserver(observer, "addon-options-displayed", false);*/
   },
 
   // Fetch the preferences for the addon
