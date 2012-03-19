@@ -13,9 +13,9 @@
     <em:homepageURL>http://foamicate.com/</em:homepageURL>
     <em:optionsURL>chrome://foamicator/content/options.xul</em:optionsURL>
     <em:optionsType>2</em:optionsType>
+    <em:iconURL>chrome://foamicator/skin/icon.png</em:iconURL>
     <!--em:optionsURL>chrome://sampleext/content/settings.xul</em:optionsURL>
     <em:aboutURL>chrome://sampleext/content/about.xul</em:aboutURL>
-    <em:iconURL>chrome://sampleext/skin/mainicon.png</em:iconURL>
     <em:updateURL>http://sampleextension.mozdev.org/update.rdf</em:updateURL-->
 
     <!-- Firefox -->

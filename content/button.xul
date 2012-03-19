@@ -14,7 +14,7 @@
       type="menu"
       oncontextmenu=""
       orient="horizontal"
-      image="chrome://foamicator/skin/button-1.png"
+      image="chrome://foamicator/skin/button.png"
       class="toolbarbutton-1 chromeclass-toolbar-additional foamicator-button">
       <menupopup>
         <menuitem id="foamicator-menu" label="Login" oncommand="Foamicator.login(event)"/>
