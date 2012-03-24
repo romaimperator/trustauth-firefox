@@ -10,6 +10,9 @@ var Foamicator = {
   FOAMICATOR_HOSTNAME: 'chrome://foamicator',
   FOAMICATOR_HTTPREALM: 'master_password',
 
+  FOAMICATOR_AJAX_LOADER: 'chrome://foamicator/skin/ajax-loader.gif',
+  FOAMICATOR_BUTTON: 'chrome://foamicator/skin/button.png',
+
   STATUS: {
       'auth':       0,
       'auth_fail':  1,
@@ -268,10 +271,10 @@ var Foamicator = {
 
       foam.store_key_pair(domain, encrypted_keys['publicKey'], encrypted_keys['privateKey']);
       foam.login_to_domain(domain);
-      foam.set_status('foamicator idle...');
+      foam.set_button_image(Foamicator.FOAMICATOR_BUTTON);
     };
     worker.postMessage({'key_length':key_length, 'exponent':exponent});
-    this.set_status('generating key...');
+    this.set_button_image(Foamicator.FOAMICATOR_AJAX_LOADER);
   },
 
   /*
@@ -388,7 +391,7 @@ var Foamicator = {
     this.init_pref();
     this.init_db();
     this.init_listener();
-    this.set_status('foamicator idle...');
+    this.set_button_image(Foamicator.FOAMICATOR_BUTTON);
 
     if (this.get_b_pref('first_run')) {
       this.set_b_pref('first_run', false);
@@ -770,6 +773,15 @@ var Foamicator = {
 
   set_b_pref: function(preference, value) {
       this.prefs.setBoolPref(preference, value);
+  },
+
+  /*
+   * This function sets the button image on the toolbar.
+   *
+   * @param image the image url to change the image to
+   */
+  set_button_image: function(image) {
+    jQuery('#foamicator-main-button', document).attr('image', image);
   },
 
   /*
