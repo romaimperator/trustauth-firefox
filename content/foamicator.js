@@ -10,6 +10,10 @@ var Foamicator = {
   FOAMICATOR_HOSTNAME: 'chrome://foamicator',
   FOAMICATOR_HTTPREALM: 'master_password',
 
+  FOAMICATOR_AJAX_LOADER: 'chrome://foamicator/skin/ajax-loader.gif',
+  FOAMICATOR_BUTTON: 'chrome://foamicator/skin/button.png',
+  FOAMICATOR_DISABLED: 'chrome://foamicator/skin/button-disabled.png',
+
   STATUS: {
       'auth':       0,
       'auth_fail':  1,
@@ -25,26 +29,28 @@ var Foamicator = {
    * Authenticates this addon with the remote server.
    */
   login: function () {
-    if ( ! this.is_password_set()) {
-      this.prompt_new_password();
-    } else {
-      if (this.is_unlocked()) {
-        var domain = this.get_domain();
-
-        // Check to see if this domain already has a key
-        if (this.domain_exist(domain)) {
-          // Login if the user already has a key for this site
-          this.login_to_domain(domain);
-        } else {
-          // Create a new key and store it in the database for this domain
-          this.generate_key_pair(domain);
-          // Then login with the new pair
-          this.login_to_domain(domain);
-        }
+    if ( ! this.disabled) {
+      if ( ! this.is_password_set()) {
+        this.prompt_new_password();
       } else {
-        if (this.prompt_password()) {
-          this.unlock();
-          this.login();
+        if (this.is_unlocked()) {
+          var domain = this.get_domain();
+
+          // Check to see if this domain already has a key
+          if (this.domain_exist(domain)) {
+            // Login if the user already has a key for this site
+            this.login_to_domain(domain);
+          } else {
+            // Create a new key and store it in the database for this domain
+            this.generate_key_pair(domain);
+            // Then login with the new pair
+            this.login_to_domain(domain);
+          }
+        } else {
+          if (this.prompt_password()) {
+            this.unlock();
+            this.login();
+          }
         }
       }
     }
@@ -63,7 +69,7 @@ var Foamicator = {
   authenticate: function(keys) {
     var foam          = this;
     // Fetch the URL to authenticate with from the page.
-    var auth_url      = jQuery('input:hidden#foamicate_url', this.get_doc()).val();
+    var auth_url      = this.get_auth_url();
     var client_random = this.get_random();
     foam.log(auth_url);
 
@@ -116,6 +122,18 @@ var Foamicator = {
               foam.log('Status not supported: ' + data['status']);
           }
     }, 'json').fail(foam.output_fail);
+  },
+
+  /*
+   * Checks to see if the site supports Foamicate. It enables the addon if it
+   * does and disables the addon if it doesn't.
+   */
+  check_page: function() {
+      if (typeof(Foamicator.get_auth_url()) != "undefined") {
+        Foamicator.enable();
+      } else {
+        Foamicator.disable();
+      }
   },
 
   /*
@@ -268,10 +286,10 @@ var Foamicator = {
 
       foam.store_key_pair(domain, encrypted_keys['publicKey'], encrypted_keys['privateKey']);
       foam.login_to_domain(domain);
-      foam.set_status('foamicator idle...');
+      foam.set_button_image(Foamicator.FOAMICATOR_BUTTON);
     };
     worker.postMessage({'key_length':key_length, 'exponent':exponent});
-    this.set_status('generating key...');
+    this.set_button_image(Foamicator.FOAMICATOR_AJAX_LOADER);
   },
 
   /*
@@ -286,6 +304,18 @@ var Foamicator = {
     var pad2_sha = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x5c), 40));
     return { md5: { pad1: pad1_md5, pad2: pad2_md5 },
              sha: { pad1: pad1_sha, pad2: pad2_sha }};
+  },
+
+  /*
+   * Returns the authentication url from the webpage if it exists.
+   */
+  get_auth_url: function() {
+    var auth_ele = jQuery('input:hidden#foamicate_url', this.get_doc());
+    if (typeof(auth_ele) != "undefined") {
+      return auth_ele.val();
+    } else {
+      return auth_ele;
+    }
   },
 
   /*
@@ -384,11 +414,33 @@ var Foamicator = {
     // initialization code
     this.initialized = true;
     this.unlocked = false;
+    this.disabled = false;
 
     this.init_pref();
     this.init_db();
     this.init_listener();
-    this.set_status('foamicator idle...');
+    this.set_button_image(Foamicator.FOAMICATOR_BUTTON);
+
+    if (this.get_b_pref('first_run')) {
+      this.set_b_pref('first_run', false);
+      this.install_button("nav-bar", "foamicator-main-button");
+      // The "addon-bar" is available since Firefox 4
+      this.install_button("addon-bar", "foamicator-main-button");
+    }
+  },
+
+  /*
+   * Runs whenever a page is finished loading.
+   */
+  on_page_load: function(event) {
+    if (event.originalTarget instanceof HTMLDocument) {
+      var win = event.originalTarget.defaultView;
+      if (win.frameElement) {
+        return;
+      } else {
+        Foamicator.check_page();
+      }
+    }
   },
 
   /*
@@ -424,6 +476,15 @@ var Foamicator = {
 /******************************/
 /* Browser Specific Functions */
 /******************************/
+
+  /*
+   * Disables the addon and grays out the button and text.
+   */
+  disable: function() {
+    this.disabled = true;
+    Foamicator.set_button_image(Foamicator.FOAMICATOR_DISABLED);
+    jQuery('#foamicator-menu-login', document).addClass('foamicator-disabled');
+  },
 
   /*
    * Checks to see if the given domain has a key in the database
@@ -465,6 +526,15 @@ var Foamicator = {
     }
 
     this.log(out);
+  },
+
+  /*
+   * Disables the addon and grays out the button and text.
+   */
+  enable: function() {
+    this.disabled = false;
+    Foamicator.set_button_image(Foamicator.FOAMICATOR_BUTTON);
+    jQuery('#foamicator-menu-login', document).removeClass('foamicator-disabled');
   },
 
   /*
@@ -640,31 +710,42 @@ var Foamicator = {
    * Initializes the javascript listeners for the buttons on the preference page.
    */
   init_listener: function() {
-    /*var observer = {
-      observe: function(aSubject, aTopic, aData) {
-        // If this addon's option page is displayed
-        if (aTopic == "addon-options-displayed" && aData == "foamicate@github.com") {
-          var doc = aSubject;
-
-          // Listener for the generate keys button
-          var control = doc.getElementById("genbutton");
-          control.addEventListener("click", function(e) { Foamicator.generate_keys(); }, false);
-
-          // Listener for the set master password button
-          var control = doc.getElementById("mpbutton");
-          control.addEventListener("click", function(e) { Foamicator.prompt_password(); }, false);
-        }
-      }
-    };
-
-    // Add the listener
-    Services.obs.addObserver(observer, "addon-options-displayed", false);*/
+    gBrowser.tabContainer.addEventListener("TabAttrModified", this.tab_modified, false);
   },
 
   // Fetch the preferences for the addon
   init_pref: function() {
     this.prefs = Components.classes["@mozilla.org/preferences-service;1"]
                     .getService(Components.interfaces.nsIPrefService).getBranch("extensions.foamicator.");
+  },
+
+  /**
+   * Installs the toolbar button with the given ID into the given
+   * toolbar, if it is not already present in the document.
+   *
+   * @param {string} toolbarId The ID of the toolbar to install to.
+   * @param {string} id The ID of the button to install.
+   * @param {string} afterId The ID of the element to insert after. @optional
+   */
+  install_button: function(toolbarId, id, afterId) {
+      if (!document.getElementById(id)) {
+          var toolbar = document.getElementById(toolbarId);
+
+          // If no afterId is given, then append the item to the toolbar
+          var before = null;
+          if (afterId) {
+              let elem = document.getElementById(afterId);
+              if (elem && elem.parentNode == toolbar)
+                  before = elem.nextElementSibling;
+          }
+
+          toolbar.insertItem(id, before);
+          toolbar.setAttribute("currentset", toolbar.currentSet);
+          document.persist(toolbar.id, "currentset");
+
+          if (toolbarId == "addon-bar")
+              toolbar.collapsed = false;
+      }
   },
 
   /*
@@ -734,6 +815,15 @@ var Foamicator = {
 
   set_b_pref: function(preference, value) {
       this.prefs.setBoolPref(preference, value);
+  },
+
+  /*
+   * This function sets the button image on the toolbar.
+   *
+   * @param image the image url to change the image to
+   */
+  set_button_image: function(image) {
+    jQuery('#foamicator-main-button', document).attr('image', image);
   },
 
   /*
@@ -905,6 +995,15 @@ var Foamicator = {
     this.log('key stored successfully');
     this.db.commitTransaction();
 
+  },
+
+  /*
+   * Triggered when any attribute changes on a tab.
+   */
+  tab_modified: function(event) {
+    if (event.target.selected) {
+      Foamicator.check_page();
+    }
   },
 };
 

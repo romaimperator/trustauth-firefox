@@ -19,9 +19,4 @@
   <script type="application/javascript" src="chrome://foamicator/content/pki.js"/>
   <script type="application/javascript" src="chrome://foamicator/content/foamicator.js"/>
 
-  <statusbar id="status-bar">
-    <statusbarpanel id="foamicator-panel" label="&menutitle;" >
-      <label id="foamicator-status" value=""/>
-    </statusbarpanel>
-  </statusbar>
 </overlay>
