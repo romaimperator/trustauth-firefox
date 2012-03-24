@@ -14,3 +14,7 @@
 [iconsize="small"] .foamicator-button:hover {
   -moz-image-region: rect(24px 40px 40px 24px);
 }
+
+.foamicator-disabled {
+  color: #bbb;
+}

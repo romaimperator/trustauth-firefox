@@ -17,7 +17,7 @@
       image="chrome://foamicator/skin/button.png"
       class="toolbarbutton-1 chromeclass-toolbar-additional foamicator-button">
       <menupopup>
-        <menuitem id="foamicator-menu" label="Login" oncommand="Foamicator.login(event)"/>
+        <menuitem id="foamicator-menu-login" label="Login" oncommand="Foamicator.login(event)"/>
       </menupopup>
     </toolbarbutton>
   </toolbarpalette>
