@@ -1008,4 +1008,7 @@ var Foamicator = {
 };
 
 // Initialize the Foamicator object
-window.addEventListener("load", function(e) { Foamicator.on_load(e); }, false);
+window.addEventListener("load", function on_load_call(e) {
+  this.removeEventListener("load", on_load_call, false);
+  Foamicator.on_load(e);
+}, false);
