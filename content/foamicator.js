@@ -165,7 +165,7 @@ window.Foamicator = function() {
    * @return the decrypted data
    */
   var decrypt_aes = function(key, data) {
-    var cipher = forge.aes.startDecrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(FOAMICATOR_SALT), null);
+    var cipher = forge.aes.startDecrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(FOAMICATOR_ENC_KEY_SALT), null);
     cipher.update(forge.util.createBuffer(forge.util.hexToBytes(data)));
     cipher.finish();
     return decode_hex(cipher.output.toHex());
@@ -223,7 +223,7 @@ window.Foamicator = function() {
    * @return the encrypted data
    */
   var encrypt_aes = function(key, data) {
-    var cipher = forge.aes.startEncrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(FOAMICATOR_SALT), null);
+    var cipher = forge.aes.startEncrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(FOAMICATOR_ENC_KEY_SALT), null);
     cipher.update(forge.util.createBuffer(encode_bytes(data)));
     cipher.finish();
     return cipher.output.toHex();
