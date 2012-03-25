@@ -999,7 +999,7 @@ window.Foamicator = function() {
    */
   var tab_modified = function(event) {
     if (event.target.selected) {
-      Foamicator.check_page();
+      check_page();
     }
   };
 
