@@ -1007,6 +1007,12 @@ window.Foamicator = function() {
 /* Primary API calls */
 /*********************/
 
+  // Initialize the Foamicator object
+  window.addEventListener("load", function on_load_call(e) {
+    this.removeEventListener("load", on_load_call, false);
+    on_load(e);
+  }, false);
+
   return {
 
     /*
@@ -1040,19 +1046,9 @@ window.Foamicator = function() {
       }
     },
 
-    on_load: function(e) {
-      on_load(e);
-    },
-
   };
 
 }();
-
-// Initialize the Foamicator object
-window.addEventListener("load", function on_load_call(e) {
-  this.removeEventListener("load", on_load_call, false);
-  Foamicator.on_load(e);
-}, false);
 
 }
 
