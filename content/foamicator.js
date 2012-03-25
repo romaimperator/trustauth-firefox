@@ -478,6 +478,26 @@ var Foamicator = {
 /******************************/
 
   /*
+   * Closes the connection to the database.
+   */
+  db_close: function() {
+    this.db.close();
+  },
+
+  /*
+   * Connects to the database.
+   */
+  db_connect: function() {
+    Components.utils.import("resource://gre/modules/Services.jsm");
+    Components.utils.import("resource://gre/modules/FileUtils.jsm");
+
+    // Establish a connection to the database
+    var file = FileUtils.getFile("ProfD", ["foamicator", "foamicate.sqlite"]);
+    var file_exists = file.exists();
+    this.db  = Services.storage.openDatabase(file);
+  },
+
+  /*
    * Disables the addon and grays out the button and text.
    */
   disable: function() {
@@ -493,6 +513,8 @@ var Foamicator = {
    * @return true if the domain is in the database false otherwise
    */
   domain_exist: function(domain) {
+    this.db_connect();
+
     try {
       // Create the statement to fetch the most recently created key for this domain
       var statement = this.db.createStatement("SELECT domain FROM keys, sites, keys_sites WHERE keys.id=keys_sites.key_id AND sites.id=keys_sites.site_id AND sites.domain=:domain ORDER BY keys.created DESC");
@@ -511,6 +533,8 @@ var Foamicator = {
     } finally {
       statement.finalize();
     }
+
+    this.db_close();
     return domain_exists;
   },
 
@@ -545,6 +569,8 @@ var Foamicator = {
    * @return hash of the public and private key pair or null if the domain doesn't have a key pair
    */
   fetch_key_pair: function(domain) {
+    this.db_connect();
+
     try {
       var statement = this.db.createStatement("SELECT public_key, private_key FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
 
@@ -566,6 +592,8 @@ var Foamicator = {
     } finally {
       statement.finalize();
     }
+
+    this.db_close();
     return key_pair;
   },
 
@@ -637,6 +665,8 @@ var Foamicator = {
    * @return the site_id
    */
   get_site_id: function(domain) {
+    this.db_connect();
+
     var row_id = null;
     try {
       var statement = this.db.createStatement("SELECT id FROM sites WHERE domain=:domain");
@@ -650,6 +680,8 @@ var Foamicator = {
     } finally {
       statement.finalize();
     }
+
+    this.db_close();
     return row_id;
   },
 
@@ -692,18 +724,13 @@ var Foamicator = {
    * Initializes the place to store the public and private key pairs.
    */
   init_db: function() {
-    Components.utils.import("resource://gre/modules/Services.jsm");
-    Components.utils.import("resource://gre/modules/FileUtils.jsm");
+    this.db_connect();
 
-    // Establish a connection to the database
-    var file = FileUtils.getFile("ProfD", ["foamicator", "foamicate.sqlite"]);
-    var file_exists = file.exists();
-    this.db  = Services.storage.openDatabase(file);
-    //if ( ! file_exists) {
-      this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
-      this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
-      this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
-    //}
+    this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
+    this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
+    this.db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
+
+    this.db_close();
   },
 
   /*
@@ -931,6 +958,8 @@ var Foamicator = {
    * @param private_key the private key of the pair as a forge object
    */
   store_key_pair: function(domain, public_key, private_key) {
+    this.db_connect();
+
     // First try to insert the domain if it's not already there.
     var site_id = this.get_site_id(domain);
     this.db.beginTransaction();
@@ -946,6 +975,8 @@ var Foamicator = {
           this.log(this.db.lastErrorString);
           this.dump(e);
           this.db.rollbackTransaction();
+
+          this.db_close();
           return;
         }
       } finally {
@@ -966,6 +997,8 @@ var Foamicator = {
       this.dump(e);
       this.log(this.db.lastErrorString);
       this.db.rollbackTransaction();
+
+      this.db_close();
       return;
     } finally {
       statement.finalize();
@@ -982,6 +1015,8 @@ var Foamicator = {
         this.dump(e);
         this.log(this.db.lastErrorString);
         this.db.rollbackTransaction();
+
+        this.db_close();
         return;
       } finally {
         statement.finalize();
@@ -995,6 +1030,7 @@ var Foamicator = {
     this.log('key stored successfully');
     this.db.commitTransaction();
 
+    this.db_close();
   },
 
   /*
