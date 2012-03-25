@@ -28,7 +28,6 @@ window.Foamicator = function() {
   var initialized = false;
   var unlocked    = false;
   var disabled    = false;
-  var db          = null;
   var prefs       = null;
 
 /*****************************/
@@ -447,13 +446,6 @@ window.Foamicator = function() {
 /******************************/
 
   /*
-   * Closes the connection to the database.
-   */
-  var db_close = function() {
-    db.close();
-  };
-
-  /*
    * Connects to the database.
    */
   var db_connect = function() {
@@ -463,7 +455,7 @@ window.Foamicator = function() {
     // Establish a connection to the database
     var file = FileUtils.getFile("ProfD", ["foamicator", "foamicate.sqlite"]);
     var file_exists = file.exists();
-    db = Services.storage.openDatabase(file);
+    return Services.storage.openDatabase(file);
   };
 
   /*
@@ -482,7 +474,7 @@ window.Foamicator = function() {
    * @return true if the domain is in the database false otherwise
    */
   var domain_exist = function(domain) {
-    db_connect();
+    var db = db_connect();
 
     try {
       // Create the statement to fetch the most recently created key for this domain
@@ -503,7 +495,7 @@ window.Foamicator = function() {
       statement.finalize();
     }
 
-    db_close();
+    db.close();
     return domain_exists;
   };
 
@@ -538,7 +530,7 @@ window.Foamicator = function() {
    * @return hash of the public and private key pair or null if the domain doesn't have a key pair
    */
   var fetch_key_pair = function(domain) {
-    db_connect();
+    var db = db_connect();
 
     var key_pair = null;
     try {
@@ -562,7 +554,7 @@ window.Foamicator = function() {
       statement.finalize();
     }
 
-    db_close();
+    db.close();
     return key_pair;
   };
 
@@ -634,7 +626,7 @@ window.Foamicator = function() {
    * @return the site_id
    */
   var get_site_id = function(domain) {
-    db_connect();
+    var db = db_connect();
 
     var row_id = null;
     try {
@@ -650,7 +642,7 @@ window.Foamicator = function() {
       statement.finalize();
     }
 
-    db_close();
+    db.close();
     return row_id;
   };
 
@@ -693,13 +685,13 @@ window.Foamicator = function() {
    * Initializes the place to store the public and private key pairs.
    */
   var init_db = function() {
-    db_connect();
+    var db = db_connect();
 
     db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
     db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
     db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
 
-    db_close();
+    db.close();
   };
 
   /*
@@ -927,7 +919,7 @@ window.Foamicator = function() {
    * @param private_key the private key of the pair as a forge object
    */
   var store_key_pair = function(domain, public_key, private_key) {
-    db_connect();
+    var db = db_connect();
 
     // First try to insert the domain if it's not already there.
     var site_id = get_site_id(domain);
@@ -945,7 +937,7 @@ window.Foamicator = function() {
           dump(e);
           db.rollbackTransaction();
 
-          db_close();
+          db.close();
           return;
         }
       } finally {
@@ -967,7 +959,7 @@ window.Foamicator = function() {
       log(db.lastErrorString);
       db.rollbackTransaction();
 
-      db_close();
+      db.close();
       return;
     } finally {
       statement.finalize();
@@ -985,7 +977,7 @@ window.Foamicator = function() {
         log(db.lastErrorString);
         db.rollbackTransaction();
 
-        db_close();
+        db.close();
         return;
       } finally {
         statement.finalize();
@@ -999,7 +991,7 @@ window.Foamicator = function() {
     log('key stored successfully');
     db.commitTransaction();
 
-    db_close();
+    db.close();
   };
 
   /*
