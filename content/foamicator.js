@@ -9,7 +9,7 @@ window.Foamicator = function() {
 
   var FOAMICATOR_USERNAME     = 'CC101164749B358E3C3C15F11DC6DA10F9551E4C435F15BB23F577B2FBCC3413';
   var FOAMICATOR_ENC_KEY_SALT = '2EEC776BE2291D76E7C81706BD0E36C0C10D62A706ADB12D2799CA731503FBBA';
-  var FOAMICATOR_RET_KEY_SALT = '7CAB8505B677344B34B83C77B6A3EF527DC31FEFDF531B9F5F623DCE040A4351';
+  var FOAMICATOR_STORAGE_SALT = '7CAB8505B677344B34B83C77B6A3EF527DC31FEFDF531B9F5F623DCE040A4351';
 
   var FOAMICATOR_HOSTNAME  = 'chrome://foamicator';
   var FOAMICATOR_HTTPREALM = 'master_password';
@@ -26,9 +26,44 @@ window.Foamicator = function() {
   };
 
   var initialized = false;
-  var unlocked    = false;
   var disabled    = false;
   var prefs       = null;
+
+  var encryption_key = null;
+
+/*********************/
+/* Primary API calls */
+/*********************/
+
+    /*
+     * Authenticates this addon with the remote server.
+     */
+    var login = function () {
+      if ( ! disabled) {
+        if ( ! is_password_set()) {
+          prompt_new_password();
+        } else {
+          if (is_unlocked()) {
+            var domain = get_domain();
+
+            // Check to see if this domain already has a key
+            if (domain_exist(domain)) {
+              // Login if the user already has a key for this site
+              login_to_domain(domain);
+            } else {
+              // Create a new key and store it in the database for this domain
+              generate_key_pair(domain);
+              // Then login with the new pair
+              login_to_domain(domain);
+            }
+          } else {
+            if (prompt_password()) {
+              login();
+            }
+          }
+        }
+      }
+    };
 
 /*****************************/
 /* Pure Javascript functions */
@@ -98,6 +133,16 @@ window.Foamicator = function() {
   };
 
   /*
+   * Calculates the encryption key for the key pairs
+   *
+   * @param password the password to use
+   * @return the encryption key
+   */
+  var calculate_encryption_key = function(password) {
+    return sha256(password + FOAMICATOR_ENC_KEY_SALT);
+  };
+
+  /*
    * Checks to see if the site supports Foamicate. It enables the addon if it
    * does and disables the addon if it doesn't.
    */
@@ -107,17 +152,6 @@ window.Foamicator = function() {
       } else {
         disable();
       }
-  };
-
-  /*
-   * Calculates the encryption key for the key pairs
-   *
-   * @param password the password to use
-   * @return the encryption key
-   */
-  var calculate_encryption_key = function(domain, password) {
-    var first_hash = sha256(password + FOAMICATOR_ENC_KEY_SALT);
-    return second_hash = sha256(first_hash + domain);
   };
 
   /*
@@ -290,6 +324,10 @@ window.Foamicator = function() {
     }
   };
 
+  var get_encryption_key = function() {
+    return encryption_key;
+  };
+
   /*
    * Generates the hashes to respond to the server with.
    *
@@ -321,6 +359,17 @@ window.Foamicator = function() {
   };
 
   /*
+   * Returns a hash of the encryption key that is safe to store for
+   * password verification.
+   *
+   * @param encryption_key the key to get a storage hash of
+   * @return the hash of the key
+   */
+  var get_storage_hash = function(encryption_key) {
+    return sha256(encryption_key + FOAMICATOR_STORAGE_SALT);
+  };
+
+  /*
    * Generate random data for the authentication process
    *
    * @return hex string of random data
@@ -348,7 +397,7 @@ window.Foamicator = function() {
    * @return boolean
    */
   var is_password_set = function() {
-    return get_encryption_key() !== null;
+    return get_stored_hash() !== null;
   };
 
   /*
@@ -357,7 +406,7 @@ window.Foamicator = function() {
    * @return boolean
    */
   var is_unlocked = function() {
-    return unlocked;
+    return get_encryption_key() !== null;
   };
 
   /*
@@ -416,25 +465,6 @@ window.Foamicator = function() {
    */
   var output_fail = function(msg, textStatus, errorThrown) {
     log(msg.status + ";" + msg.statusText + ";" + msg.responseXML);
-  };
-
-  /*
-   * Unlocks the addon to use the keys stored in the database.
-   */
-  var unlock = function() {
-      log('unlock passed');
-      unlocked = true;
-  };
-
-  /*
-   * Checks to see if the password entered is the correct master password.
-   *
-   * @paraam password the password to check
-   * @return true if the password is correct false otherwise
-   */
-  var verify_password = function(password) {
-    var encryption_key = calculate_encryption_key(password);
-    return get_encryption_key() === encryption_key;
   };
 
 
@@ -581,42 +611,35 @@ window.Foamicator = function() {
     return get_doc().domain;
   };
 
-  /*
-   * Retrieves the enryption key that is stored in the password manager
-   *
-   * @return the key that was stored
-   */
-  var get_encryption_key = function() {
-    var hostname = FOAMICATOR_HOSTNAME;
-    var formSubmitURL = null;
-    var httprealm = FOAMICATOR_HTTPREALM;
-    var username = FOAMICATOR_USERNAME;
-    var password = null;
-
-    try {
-      // Get Login Manager
-      var myLoginManager = Components.classes["@mozilla.org/login-manager;1"].
-                             getService(Components.interfaces.nsILoginManager);
-
-      // Find users for the given parameters
-      var logins = myLoginManager.findLogins({}, hostname, formSubmitURL, httprealm);
-
-      // Find user from returned array of nsILoginInfo objects
-      for (var i = 0; i < logins.length; i++) {
-        if (logins[i].username == username) {
-          password = logins[i].password;
-          break;
-        }
-      }
-    } catch(ex) {
-      // This will only happen if there is no nsILoginManager component class
-    }
-
-    return password;
-  };
-
   var get_i_pref = function(preference) {
       return prefs.getIntPref(preference);
+  };
+
+  /**
+   * Retrieves the hash stored in the database.
+   *
+   * @return {string} the hash if there is one, null otherwise
+   */
+  var get_stored_hash = function() {
+    var db = db_connect();
+
+    var hash = null;
+    try {
+      var statement = db.createStatement("SELECT hash FROM password_verify LIMIT 1");
+
+      if (statement.executeStep()) {
+        hash = statement.row.hash;
+        log('hash: ' + hash);
+      }
+    } catch(ex) {
+      dump(ex);
+      log(db.lastErrorString);
+    } finally {
+      statement.finalize();
+      db.close();
+    }
+
+    return hash;
   };
 
   /*
@@ -690,6 +713,7 @@ window.Foamicator = function() {
     db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
     db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
     db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
+    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS password_verify (hash TEXT)");
 
     db.close();
   };
@@ -699,6 +723,7 @@ window.Foamicator = function() {
    */
   var init_listener = function() {
     gBrowser.tabContainer.addEventListener("TabAttrModified", tab_modified, false);
+    document.getElementById('foamicator-menu-login').addEventListener("click", login, false);
   };
 
   // Fetch the preferences for the addon
@@ -771,12 +796,12 @@ window.Foamicator = function() {
                   .getService(Components.interfaces.nsIPromptService);
     var password = {value: null};
     var checked = {value: null};
-    message = message || "Enter a master password to use for Foamicator";
+    message = message || "Please enter a master password to use for Foamicator:";
 
     prompts.promptPassword(null, message, null, password, null, checked);
     if (password.value !== null) {
-      store_encryption_key(calculate_encryption_key(password.value));
-      unlock(password.value);
+      encryption_key = calculate_encryption_key(password.value);
+      store_encryption_key(encryption_key);
     }
   };
 
@@ -792,13 +817,14 @@ window.Foamicator = function() {
     var password = {value: null};
     var checked = {value: null};
 
-    prompts.promptPassword(null, "Enter your master password for Foamicator", null, password, null, checked);
-    if (password.value === null) return false;
-    while ( ! verify_password(password.value)) {
-      prompts.promptPassword(null, "Incorrect master password", null, password, null, checked);
-      if (password.value === null) return false;
+    if (prompts.promptPassword(null, "Enter your master password for Foamicator:", null, password, null, checked)) {
+      while ( ! verify_password(password.value)) {
+        if ( ! prompts.promptPassword(null, "Incorrect master password", null, password, null, checked)) return false;
+      }
+      encryption_key = calculate_encryption_key(password.value);
+      return true;
     }
-    return true;
+    return false;
   };
 
   var set_b_pref = function(preference, value) {
@@ -889,26 +915,25 @@ window.Foamicator = function() {
    * @param key the key to store
    */
   var store_encryption_key = function(key) {
-    var hostname = FOAMICATOR_HOSTNAME;
-    var formSubmitURL = null;
-    var httprealm = FOAMICATOR_HTTPREALM;
-    var username = FOAMICATOR_USERNAME;
-    var password = key;
+    var success = false;
+    if (! is_password_set()) {
+      var db = db_connect();
 
-    log("begin");
-    var nsLoginInfo = new Components.Constructor("@mozilla.org/login-manager/loginInfo;1",
-                                             Components.interfaces.nsILoginInfo,
-                                             "init");
+      try {
+        var statement = db.createStatement("INSERT OR ABORT INTO password_verify (hash) VALUES(:hash)");
+        statement.params.hash = get_storage_hash(key);
 
-    var loginInfo = new nsLoginInfo(hostname, formSubmitURL, httprealm, username, password, "", "");
-    log("created info");
+        success = statement.executeStep();
+      } catch (ex) {
+        dump(ex);
+        log(db.lastErrorString);
+      } finally {
+        statement.finalize();
+        db.close();
+      }
 
-    // Get Login Manager
-    var myLoginManager = Components.classes["@mozilla.org/login-manager;1"].
-                           getService(Components.interfaces.nsILoginManager);
-
-    myLoginManager.addLogin(loginInfo);
-    log("store info");
+    }
+    return success;
   };
 
   /*
@@ -944,6 +969,7 @@ window.Foamicator = function() {
         statement.finalize();
       }
     }
+    log('site_id: ' + site_id);
 
     // Now that the domain is there, try to insert the new keys
     try {
@@ -954,6 +980,7 @@ window.Foamicator = function() {
       statement.execute();
 
       var key_id = db.lastInsertRowID;
+      log('key_id: ' + key_id);
     } catch (e) {
       dump(e);
       log(db.lastErrorString);
@@ -971,7 +998,7 @@ window.Foamicator = function() {
         var statement = db.createStatement("INSERT INTO keys_sites (key_id, site_id) VALUES(:key_id, :site_id)");
         statement.params.key_id  = key_id;
         statement.params.site_id = site_id;
-        statement.execute();
+        log('combo result: ' + statement.executeStep());
       } catch (e) {
         dump(e);
         log(db.lastErrorString);
@@ -1003,50 +1030,24 @@ window.Foamicator = function() {
     }
   };
 
-/*********************/
-/* Primary API calls */
-/*********************/
+  /**
+   * Verifies that the password given is the correct password.
+   *
+   * @param {string} password the password to check
+   * @return {bool} true if it is, false otherwise
+   */
+  var verify_password = function(password) {
+    var hash = get_stored_hash();
+
+    log('checking hash: ' + get_storage_hash(calculate_encryption_key(password)));
+    return (hash !== null && hash === get_storage_hash(calculate_encryption_key(password)));
+  };
 
   // Initialize the Foamicator object
   window.addEventListener("load", function on_load_call(e) {
     this.removeEventListener("load", on_load_call, false);
     on_load(e);
   }, false);
-
-  return {
-
-    /*
-     * Authenticates this addon with the remote server.
-     */
-    login: function () {
-      if ( ! disabled) {
-        if ( ! is_password_set()) {
-          prompt_new_password();
-        } else {
-          if (is_unlocked()) {
-            var domain = get_domain();
-
-            // Check to see if this domain already has a key
-            if (domain_exist(domain)) {
-              // Login if the user already has a key for this site
-              login_to_domain(domain);
-            } else {
-              // Create a new key and store it in the database for this domain
-              generate_key_pair(domain);
-              // Then login with the new pair
-              login_to_domain(domain);
-            }
-          } else {
-            if (prompt_password()) {
-              unlock();
-              Foamicator.login();
-            }
-          }
-        }
-      }
-    },
-
-  };
 
 }();
 
