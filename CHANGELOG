@@ -1,3 +1,11 @@
+2012-04-08  Daniel Fox  <romaimperator@gmail.com>
+		Release 0.3.2.1
+		* fixing readme and this changelog
+
+		Release 0.3.2
+		* renamed the addon and all references to Foamicate and Foamicator
+		to TrustAuth.
+
 2012-03-30  Daniel Fox  <romaimperator@gmail.com>
 		Release 0.3.1
 		* removed crypto-md5.js, crypto-sha1.js, and foamicate@github.com all
