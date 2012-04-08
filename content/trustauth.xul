@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-stylesheet href="chrome://trustauth/skin/trustauth.css" type="text/css"?>
 <!DOCTYPE overlay SYSTEM "chrome://trustauth/locale/trustauth.dtd">
-<overlay id="foamicate-overlay"
+<overlay id="trustauth-overlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
   <script type="application/javascript" src="chrome://trustauth/content/jquery-1.7.1.min.js"/>
   <script type="application/javascript" src="chrome://browser/content/utilityOverlay.js"/>
