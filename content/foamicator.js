@@ -46,6 +46,9 @@ window.Foamicator = function() {
       'stage_fail': 3,
   };
 
+  var TOKEN_NAME_CSS = "[name='csrf-param']";
+  var AUTH_TOKEN_CSS = "[name='csrf-token']";
+
   var initialized = false;
   var disabled    = false;
   var prefs       = null;
@@ -100,7 +103,10 @@ window.Foamicator = function() {
     // Fetch the URL to authenticate with from the page.
     var auth_url      = get_auth_url();
     var client_random = get_random();
-    log(auth_url);
+    var token_name    = jQuery(TOKEN_NAME_CSS, get_doc()).attr('content');
+    var auth_token    = jQuery(AUTH_TOKEN_CSS, get_doc()).attr('content');
+    //log(auth_token);
+    //log(auth_url);
 
     var key_objects = {
       'public_key': forge.pki.publicKeyFromPem(keys['public_key']),
@@ -108,14 +114,19 @@ window.Foamicator = function() {
     };
 
     // Send the public_key to the the url specified and listen for the encrypted pre_master_key
-    jQuery.post(auth_url, { public_key: escape(keys['public_key']), random: client_random },
+    var params = { public_key: escape(keys['public_key']), random: client_random };
+    params[token_name] = auth_token;
+    jQuery.post(auth_url, params,
       function(data) {
+          //log('first:' + JSON.stringify(data, null));
           if (data['status'] === STATUS['stage_fail']) {
               // The server says we were in the middle of a previous authentication so try again.
               log(data['error']);
               authenticate(keys);
               return;
           } else if (data['status'] === STATUS['auth']) {
+              auth_url = isset(data['auth_response_url']) ? data['auth_response_url'] : auth_url;
+              //log(auth_url);
               //foam.log('secret: ' + data['secret']);
               // Now that we have received the server response, decrypt the pre_master_key
               var pre_master_secret = decrypt(key_objects['private_key'], data['secret']);
@@ -138,13 +149,17 @@ window.Foamicator = function() {
               hashes['md5'] = encrypt(key_objects['private_key'], hashes['md5']);
               hashes['sha'] = encrypt(key_objects['private_key'], hashes['sha']);
               //foam.log('hashes: ' + JSON.stringify(hashes, null));
-              jQuery.post(auth_url, { md5: hashes['md5'], sha: hashes['sha'] },
+              params = { md5: hashes['md5'], sha: hashes['sha'] }
+              params[token_name] = auth_token;
+              jQuery.post(auth_url, params,
                 function(data) {
+                    //log('second:' + JSON.stringify(data, null));
                     if (data['status'] === STATUS['auth_fail']) {
                         log(data['error']);
                     } else if (data['status'] === STATUS['logged_in']) {
                         log('login successful');
                     }
+                    //log('redirect url: ' + data['url']);
                     openUILinkIn(data['url'], 'current');
               }, 'json').fail(output_fail);
           } else {
@@ -337,9 +352,10 @@ window.Foamicator = function() {
    * Returns the authentication url from the webpage if it exists.
    */
   var get_auth_url = function() {
-    var auth_ele = jQuery('input:hidden#foamicate_url', get_doc());
+    //var auth_ele = jQuery('input:hidden#foamicate_url', get_doc());
+    var auth_ele = jQuery("meta[name='trustauth']", get_doc());
     if (typeof(auth_ele) != "undefined") {
-      return auth_ele.val();
+      return 'http://' + get_domain() + auth_ele.attr('content');
     } else {
       return auth_ele;
     }
