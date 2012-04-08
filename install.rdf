@@ -4,17 +4,17 @@
 
   <Description about="urn:mozilla:install-manifest">
 
-    <em:id>foamicate@github.com</em:id>
-    <em:name>Foamicator</em:name>
+    <em:id>trustauth@trustauth.com</em:id>
+    <em:name>TrustAuth</em:name>
     <em:version>0.3.1</em:version>
     <em:type>2</em:type>
     <em:description>This extension enables use of public key cryptography to log into a website.</em:description>
     <em:creator>Daniel Fox</em:creator>
     <!-- optional items -->
-    <em:homepageURL>http://foamicate.com/</em:homepageURL>
-    <em:optionsURL>chrome://foamicator/content/options.xul</em:optionsURL>
+    <em:homepageURL>http://trustauth.com/</em:homepageURL>
+    <em:optionsURL>chrome://trustauth/content/options.xul</em:optionsURL>
     <em:optionsType>2</em:optionsType>
-    <em:iconURL>chrome://foamicator/skin/icon.png</em:iconURL>
+    <em:iconURL>chrome://trustauth/skin/icon.png</em:iconURL>
     <!--em:optionsURL>chrome://sampleext/content/settings.xul</em:optionsURL>
     <em:aboutURL>chrome://sampleext/content/about.xul</em:aboutURL>
     <em:updateURL>http://sampleextension.mozdev.org/update.rdf</em:updateURL-->
