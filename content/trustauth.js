@@ -1,8 +1,8 @@
 /**
- * This is the main code for the Foamicator addon.
+ * This is the main code for the TrustAuth addon.
  *
  * @author Daniel Fox
- * @link foamicate.com
+ * @link trustauth.com
  * @license BSD-3 Clause License http://opensource.org/licenses/BSD-3-Clause
  *
  * Copyright (c) 2012, Daniel Fox
@@ -13,7 +13,7 @@
  *     Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
  *     Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the
  *         documentation and/or other materials provided with the distribution.
- *     Neither the name of Foamicate nor the names of its contributors may be used to endorse or promote products derived from this software
+ *     Neither the name of TrustAuth nor the names of its contributors may be used to endorse or promote products derived from this software
  *         without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -27,17 +27,17 @@
 
 if (typeof(window) !== "undefined") {
 
-window.Foamicator = function() {
+window.TrustAuth = function() {
   var RANDOM_LENGTH = 28; // in bytes
 
   var SENDER_CLIENT = '0x434C4E54';
 
-  var FOAMICATOR_ENC_KEY_SALT = '2EEC776BE2291D76E7C81706BD0E36C0C10D62A706ADB12D2799CA731503FBBA';
-  var FOAMICATOR_STORAGE_SALT = '7CAB8505B677344B34B83C77B6A3EF527DC31FEFDF531B9F5F623DCE040A4351';
+  var TRUSTAUTH_ENC_KEY_SALT = '2EEC776BE2291D76E7C81706BD0E36C0C10D62A706ADB12D2799CA731503FBBA';
+  var TRUSTAUTH_STORAGE_SALT = '7CAB8505B677344B34B83C77B6A3EF527DC31FEFDF531B9F5F623DCE040A4351';
 
-  var FOAMICATOR_AJAX_LOADER = 'chrome://foamicator/skin/ajax-loader.gif';
-  var FOAMICATOR_BUTTON      = 'chrome://foamicator/skin/button.png';
-  var FOAMICATOR_DISABLED    = 'chrome://foamicator/skin/button-disabled.png';
+  var TRUSTAUTH_AJAX_LOADER = 'chrome://trustauth/skin/ajax-loader.gif';
+  var TRUSTAUTH_BUTTON      = 'chrome://trustauth/skin/button.png';
+  var TRUSTAUTH_DISABLED    = 'chrome://trustauth/skin/button-disabled.png';
 
   var STATUS = {
       'auth':       0,
@@ -175,11 +175,11 @@ window.Foamicator = function() {
    * @return the encryption key
    */
   var calculate_encryption_key = function(password) {
-    return sha256(password + FOAMICATOR_ENC_KEY_SALT);
+    return sha256(password + TRUSTAUTH_ENC_KEY_SALT);
   };
 
   /*
-   * Checks to see if the site supports Foamicate. It enables the addon if it
+   * Checks to see if the site supports TrustAuth. It enables the addon if it
    * does and disables the addon if it doesn't.
    */
   var check_page = function() {
@@ -235,7 +235,7 @@ window.Foamicator = function() {
    * @return the decrypted data
    */
   var decrypt_aes = function(key, data) {
-    var cipher = forge.aes.startDecrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(FOAMICATOR_ENC_KEY_SALT), null);
+    var cipher = forge.aes.startDecrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(TRUSTAUTH_ENC_KEY_SALT), null);
     cipher.update(forge.util.createBuffer(forge.util.hexToBytes(data)));
     cipher.finish();
     return decode_hex(cipher.output.toHex());
@@ -293,7 +293,7 @@ window.Foamicator = function() {
    * @return the encrypted data
    */
   var encrypt_aes = function(key, data) {
-    var cipher = forge.aes.startEncrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(FOAMICATOR_ENC_KEY_SALT), null);
+    var cipher = forge.aes.startEncrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(TRUSTAUTH_ENC_KEY_SALT), null);
     cipher.update(forge.util.createBuffer(encode_bytes(data)));
     cipher.finish();
     return cipher.output.toHex();
@@ -310,7 +310,7 @@ window.Foamicator = function() {
     var key_length = get_i_pref("key_length");
     var exponent   = get_i_pref("exponent");
 
-    var worker = new Worker('chrome://foamicator/content/generate_key_pair.js');
+    var worker = new Worker('chrome://trustauth/content/generate_key_pair.js');
     worker.onerror   = function(event) {
       log('error: ' + event.message);
     };
@@ -328,10 +328,10 @@ window.Foamicator = function() {
 
       store_key_pair(domain, encrypted_keys['publicKey'], encrypted_keys['privateKey']);
       login_to_domain(domain);
-      set_button_image(FOAMICATOR_BUTTON);
+      set_button_image(TRUSTAUTH_BUTTON);
     };
     worker.postMessage({'key_length':key_length, 'exponent':exponent});
-    set_button_image(FOAMICATOR_AJAX_LOADER);
+    set_button_image(TRUSTAUTH_AJAX_LOADER);
   };
 
   /*
@@ -403,7 +403,7 @@ window.Foamicator = function() {
    * @return the hash of the key
    */
   var get_storage_hash = function(encryption_key) {
-    return sha256(encryption_key + FOAMICATOR_STORAGE_SALT);
+    return sha256(encryption_key + TRUSTAUTH_STORAGE_SALT);
   };
 
   /*
@@ -473,13 +473,13 @@ window.Foamicator = function() {
     init_pref();
     init_db();
     init_listener();
-    set_button_image(FOAMICATOR_BUTTON);
+    set_button_image(TRUSTAUTH_BUTTON);
 
     if (get_b_pref('first_run')) {
       set_b_pref('first_run', false);
-      install_button("nav-bar", "foamicator-main-button");
+      install_button("nav-bar", "trustauth-main-button");
       // The "addon-bar" is available since Firefox 4
-      install_button("addon-bar", "foamicator-main-button");
+      install_button("addon-bar", "trustauth-main-button");
     }
   };
 
@@ -520,7 +520,7 @@ window.Foamicator = function() {
     Components.utils.import("resource://gre/modules/FileUtils.jsm");
 
     // Establish a connection to the database
-    var file = FileUtils.getFile("ProfD", ["foamicator", "foamicate.sqlite"]);
+    var file = FileUtils.getFile("ProfD", ["trustauth", "trustauth.sqlite"]);
     var file_exists = file.exists();
     return Services.storage.openDatabase(file);
   };
@@ -530,8 +530,8 @@ window.Foamicator = function() {
    */
   var disable = function() {
     disabled = true;
-    set_button_image(FOAMICATOR_DISABLED);
-    jQuery('#foamicator-menu-login', document).addClass('foamicator-disabled');
+    set_button_image(TRUSTAUTH_DISABLED);
+    jQuery('#trustauth-menu-login', document).addClass('trustauth-disabled');
   };
 
   /*
@@ -585,8 +585,8 @@ window.Foamicator = function() {
    */
   var enable = function() {
     disabled = false;
-    set_button_image(FOAMICATOR_BUTTON);
-    jQuery('#foamicator-menu-login', document).removeClass('foamicator-disabled');
+    set_button_image(TRUSTAUTH_BUTTON);
+    jQuery('#trustauth-menu-login', document).removeClass('trustauth-disabled');
   };
 
   /*
@@ -760,13 +760,13 @@ window.Foamicator = function() {
    */
   var init_listener = function() {
     gBrowser.tabContainer.addEventListener("TabAttrModified", tab_modified, false);
-    document.getElementById('foamicator-menu-login').addEventListener("click", login, false);
+    document.getElementById('trustauth-menu-login').addEventListener("click", login, false);
   };
 
   // Fetch the preferences for the addon
   var init_pref = function() {
     prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                    .getService(Components.interfaces.nsIPrefService).getBranch("extensions.foamicator.");
+                    .getService(Components.interfaces.nsIPrefService).getBranch("extensions.trustauth.");
   };
 
   /**
@@ -799,14 +799,14 @@ window.Foamicator = function() {
   };
 
   /*
-   * Logs a message to the console as a Foamicator message.
+   * Logs a message to the console as a TrustAuth message.
    *
    * @param aMessage the message to log
    */
   var log = function(aMessage) {
       var console = Components.classes['@mozilla.org/consoleservice;1'].
                 getService(Components.interfaces.nsIConsoleService);
-      console.logStringMessage('Foamicator: ' + aMessage);
+      console.logStringMessage('TrustAuth: ' + aMessage);
   };
 
   /*
@@ -833,7 +833,7 @@ window.Foamicator = function() {
                   .getService(Components.interfaces.nsIPromptService);
     var password = {value: null};
     var checked = {value: null};
-    message = message || "Please enter a master password to use for Foamicator:";
+    message = message || "Please enter a master password to use for TrustAuth:";
 
     prompts.promptPassword(null, message, null, password, null, checked);
     if (password.value !== null) {
@@ -854,7 +854,7 @@ window.Foamicator = function() {
     var password = {value: null};
     var checked = {value: null};
 
-    if (prompts.promptPassword(null, "Enter your master password for Foamicator:", null, password, null, checked)) {
+    if (prompts.promptPassword(null, "Enter your master password for TrustAuth:", null, password, null, checked)) {
       while ( ! verify_password(password.value)) {
         if ( ! prompts.promptPassword(null, "Incorrect master password", null, password, null, checked)) return false;
       }
@@ -874,7 +874,7 @@ window.Foamicator = function() {
    * @param image the image url to change the image to
    */
   var set_button_image = function(image) {
-    jQuery('#foamicator-main-button', document).attr('image', image);
+    jQuery('#trustauth-main-button', document).attr('image', image);
   };
 
   /*
@@ -883,7 +883,7 @@ window.Foamicator = function() {
    * @param text the text to change the button to.
    */
   var set_status = function(text) {
-    document.getElementById('foamicator-status').value = text;
+    document.getElementById('trustauth-status').value = text;
   };
 
   var set_c_pref = function(preference, value) {
@@ -942,8 +942,8 @@ window.Foamicator = function() {
    * NOTE: currently not in use.
    */
   var show_master_password_dialog = function() {
-    var win = window.openDialog("chrome://foamicator/content/password_dialog.xul",
-                      "foamicatorPasswordDialog", "chrome,centerscreen");
+    var win = window.openDialog("chrome://trustauth/content/password_dialog.xul",
+                      "trustauthPasswordDialog", "chrome,centerscreen");
   };
 
   /*
@@ -1080,7 +1080,7 @@ window.Foamicator = function() {
     return (hash !== null && hash === get_storage_hash(calculate_encryption_key(password)));
   };
 
-  // Initialize the Foamicator object
+  // Initialize the TrustAuth object
   window.addEventListener("load", function on_load_call(e) {
     this.removeEventListener("load", on_load_call, false);
     on_load(e);

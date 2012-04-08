@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet type="text/css" href="chrome://foamicator/skin/button.css"?>
+<?xml-stylesheet type="text/css" href="chrome://trustauth/skin/button.css"?>
 
 <!DOCTYPE overlay >
 <overlay id="custombutton-overlay"
@@ -7,17 +7,17 @@
 
   <toolbarpalette id="BrowserToolbarPalette">
     <toolbarbutton
-      id="foamicator-main-button"
-      label="Foamicator"
+      id="trustauth-main-button"
+      label="TrustAuth"
       insertafter="tool-bookmarks"
-      tooltiptext="Foamicator"
+      tooltiptext="TrustAuth"
       type="menu"
       oncontextmenu=""
       orient="horizontal"
-      image="chrome://foamicator/skin/button.png"
-      class="toolbarbutton-1 chromeclass-toolbar-additional foamicator-button">
+      image="chrome://trustauth/skin/button.png"
+      class="toolbarbutton-1 chromeclass-toolbar-additional trustauth-button">
       <menupopup>
-        <menuitem id="foamicator-menu-login" label="Login" oncommand=""/>
+        <menuitem id="trustauth-menu-login" label="Login" oncommand=""/>
       </menupopup>
     </toolbarbutton>
   </toolbarpalette>
