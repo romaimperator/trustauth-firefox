@@ -1,22 +1,22 @@
 <?xml version="1.0"?>
-<?xml-stylesheet href="chrome://foamicator/skin/foamicator.css" type="text/css"?>
-<!DOCTYPE overlay SYSTEM "chrome://foamicator/locale/foamicator.dtd">
+<?xml-stylesheet href="chrome://trustauth/skin/trustauth.css" type="text/css"?>
+<!DOCTYPE overlay SYSTEM "chrome://trustauth/locale/trustauth.dtd">
 <overlay id="foamicate-overlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-  <script type="application/javascript" src="chrome://foamicator/content/jquery-1.7.1.min.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/jquery-1.7.1.min.js"/>
   <script type="application/javascript" src="chrome://browser/content/utilityOverlay.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/jsbn.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/aes.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/asn1.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/md5.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/sha1.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/sha256.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/oids.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/util.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/prng.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/random.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/rsa.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/pki.js"/>
-  <script type="application/javascript" src="chrome://foamicator/content/foamicator.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/jsbn.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/aes.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/asn1.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/md5.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/sha1.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/sha256.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/oids.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/util.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/prng.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/random.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/rsa.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/pki.js"/>
+  <script type="application/javascript" src="chrome://trustauth/content/trustauth.js"/>
 
 </overlay>

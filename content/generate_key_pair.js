@@ -2,7 +2,7 @@
  * This is the main code for generating key pairs on a separate thread.
  *
  * @author Daniel Fox
- * @link foamicate.com
+ * @link trustauth.com
  * @license BSD-3 Clause License http://opensource.org/licenses/BSD-3-Clause
  *
  * Copyright (c) 2012, Daniel Fox
@@ -13,7 +13,7 @@
  *     Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
  *     Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the
  *         documentation and/or other materials provided with the distribution.
- *     Neither the name of Foamicate nor the names of its contributors may be used to endorse or promote products derived from this software
+ *     Neither the name of TrustAuth nor the names of its contributors may be used to endorse or promote products derived from this software
  *         without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -26,18 +26,18 @@
 var window = {};
 onmessage = function(event) {
   importScripts(
-    "chrome://foamicator/content/jsbn.js",
-    "chrome://foamicator/content/util.js",
-    "chrome://foamicator/content/aes.js",
-    "chrome://foamicator/content/asn1.js",
-    "chrome://foamicator/content/md5.js",
-    "chrome://foamicator/content/sha1.js",
-    "chrome://foamicator/content/sha256.js",
-    "chrome://foamicator/content/oids.js",
-    "chrome://foamicator/content/prng.js",
-    "chrome://foamicator/content/random.js",
-    "chrome://foamicator/content/rsa.js",
-    "chrome://foamicator/content/pki.js"
+    "chrome://trustauth/content/jsbn.js",
+    "chrome://trustauth/content/util.js",
+    "chrome://trustauth/content/aes.js",
+    "chrome://trustauth/content/asn1.js",
+    "chrome://trustauth/content/md5.js",
+    "chrome://trustauth/content/sha1.js",
+    "chrome://trustauth/content/sha256.js",
+    "chrome://trustauth/content/oids.js",
+    "chrome://trustauth/content/prng.js",
+    "chrome://trustauth/content/random.js",
+    "chrome://trustauth/content/rsa.js",
+    "chrome://trustauth/content/pki.js"
   );
 
   var key_length = event.data['key_length'];
