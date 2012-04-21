@@ -59,23 +59,83 @@ window.TrustAuth = function() {
     var encrypt_login = function() {
       if (is_unlocked()) {
         var domain = get_domain();
-
-        log(domain);
-
         if (domain_exist(domain)) {
-          var challenge = get_doc().getElementById("trustauth-challenge").value;
+          var challenge_element = get_doc().getElementById("trustauth-challenge");
+
+          disable_child_submit(challenge_element.parentNode);
+
           var keys = fetch_key_pair(domain);
           var private_key = forge.pki.privateKeyFromPem(keys['private_key']);
 
-          var response = encrypt(private_key, challenge);
-          get_doc().getElementById("trustauth-challenge").value = response;
-        }
-      } else {
-        if (prompt_password()) {
-          encrypt_login();
+          get_doc().getElementById("trustauth-challenge").value = encrypt(private_key, challenge_element.value);
+          enable_child_submit(challenge_element.parentNode);
         }
       }
-    }
+    };
+
+    /**
+     * Disables all of the submit buttons that are a child of the given element.
+     *
+     * @param {HTMLElement} parent the element containing submit buttons to disable
+     */
+    var disable_child_submit = function(parent) {
+      var buttons = parent.getElementsByTagName("button");
+
+      for (i in buttons) {
+        if (buttons[i].getAttribute("type") == "submit") {
+          buttons[i].disabled = true;
+        }
+      }
+    };
+
+
+    /**
+     * Enables all of the submit buttons that are a child of the given element.
+     *
+     * @param {HTMLElement} parent the element containing submit buttons to enable
+     */
+    var enable_child_submit = function(parent) {
+      var buttons = parent.getElementsByTagName("button");
+
+      for (i in buttons) {
+        if (buttons[i].getAttribute("type") == "submit") {
+          buttons[i].disabled = false;
+        }
+      }
+    };
+
+    /**
+     * This function is called to bind a click listener to the Add TrustAuth Key button.
+     */
+    var add_key_listener = function() {
+      log("called add_key_listener");
+      if (is_unlocked()) {
+        get_doc().getElementById("trustauth-register").addEventListener("click", add_trustauth_key, true);
+      }
+    };
+
+    /**
+     * This function injects the public key into a hidden form field with an ID of
+     * "trustauth-key" whenever the Add TrustAuth Key button is clicked.
+     */
+    var add_trustauth_key = function() {
+      log("called add_trustauth_key");
+      if (is_unlocked()) {
+        var register_element = get_doc().getElementById("trustauth-register");
+
+        register_element.removeEventListener("click", add_trustauth_key, true);
+        disable_child_submit(register_element.parentNode);
+
+        var domain = get_domain();
+        if (domain_exist(domain)) {
+          var keys = fetch_key_pair(domain);
+          get_doc().getElementById("trustauth-key").value = keys['public_key'];
+        } else {
+          // Grab the cached key and setup a submit listener
+        }
+        enable_child_submit(register_element.parentNode);
+      }
+    };
 
 /*********************/
 /* Primary API calls */
@@ -470,7 +530,8 @@ window.TrustAuth = function() {
       if (win.frameElement) {
         return;
       } else {
-        check_page();
+        add_key_listener();
+        encrypt_login();
       }
     }
   };
@@ -738,6 +799,7 @@ window.TrustAuth = function() {
    */
   var init_listener = function() {
     gBrowser.tabContainer.addEventListener("TabAttrModified", tab_modified, false);
+    gBrowser.addEventListener("load", on_page_load, true);
     document.getElementById('trustauth-menu-login').addEventListener("click", login, false);
   };
 
