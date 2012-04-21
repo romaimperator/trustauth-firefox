@@ -52,7 +52,7 @@ window.TrustAuth = function() {
      * This function is called whenever a page is loaded and has an element with
      * and ID of "trustauth-challenge". If there is a key already generated for this
      * site then the key is used to encrypte the random value in this field. The random
-     * value is placed into the value attribute of the element with an ID of "trustauth-response".
+     * value is placed into the value attribute of the element that contained the challenge.
      *
      * If there is not a key for this site then the addon does nothing.
      */
