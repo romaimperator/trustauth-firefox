@@ -44,6 +44,39 @@ window.TrustAuth = function() {
 
   var encryption_key = null;
 
+/*****************/
+/* TrustAuth 1.0 */
+/*****************/
+
+    /**
+     * This function is called whenever a page is loaded and has an element with
+     * and ID of "trustauth-challenge". If there is a key already generated for this
+     * site then the key is used to encrypte the random value in this field. The random
+     * value is placed into the value attribute of the element with an ID of "trustauth-response".
+     *
+     * If there is not a key for this site then the addon does nothing.
+     */
+    var encrypt_login = function() {
+      if (is_unlocked()) {
+        var domain = get_domain();
+
+        log(domain);
+
+        if (domain_exist(domain)) {
+          var challenge = get_doc().getElementById("trustauth-challenge").value;
+          var keys = fetch_key_pair(domain);
+          var private_key = forge.pki.privateKeyFromPem(keys['private_key']);
+
+          var response = encrypt(private_key, challenge);
+          get_doc().getElementById("trustauth-challenge").value = response;
+        }
+      } else {
+        if (prompt_password()) {
+          encrypt_login();
+        }
+      }
+    }
+
 /*********************/
 /* Primary API calls */
 /*********************/
