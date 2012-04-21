@@ -28,23 +28,12 @@
 if (typeof(window) !== "undefined") {
 
 window.TrustAuth = function() {
-  var RANDOM_LENGTH = 28; // in bytes
-
-  var SENDER_CLIENT = '0x434C4E54';
-
   var TRUSTAUTH_ENC_KEY_SALT = '2EEC776BE2291D76E7C81706BD0E36C0C10D62A706ADB12D2799CA731503FBBA';
   var TRUSTAUTH_STORAGE_SALT = '7CAB8505B677344B34B83C77B6A3EF527DC31FEFDF531B9F5F623DCE040A4351';
 
   var TRUSTAUTH_AJAX_LOADER = 'chrome://trustauth/skin/ajax-loader.gif';
   var TRUSTAUTH_BUTTON      = 'chrome://trustauth/skin/button.png';
   var TRUSTAUTH_DISABLED    = 'chrome://trustauth/skin/button-disabled.png';
-
-  var STATUS = {
-      'auth':       0,
-      'auth_fail':  1,
-      'logged_in':  2,
-      'stage_fail': 3,
-  };
 
   var TOKEN_NAME_CSS = "[name='csrf-param']";
   var AUTH_TOKEN_CSS = "[name='csrf-token']";
@@ -335,20 +324,6 @@ window.TrustAuth = function() {
   };
 
   /*
-   * Generates the padding required for calculating the hashes and is used for authentication.
-   *
-   * @return array of the 4 padding values
-   */
-  var generate_padding = function() {
-    var pad1_md5 = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x36), 48));
-    var pad2_md5 = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x5c), 48));
-    var pad1_sha = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x36), 40));
-    var pad2_sha = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x5c), 40));
-    return { md5: { pad1: pad1_md5, pad2: pad2_md5 },
-             sha: { pad1: pad1_sha, pad2: pad2_sha }};
-  };
-
-  /*
    * Returns the authentication url from the webpage if it exists.
    */
   var get_auth_url = function() {
@@ -363,36 +338,6 @@ window.TrustAuth = function() {
 
   var get_encryption_key = function() {
     return encryption_key;
-  };
-
-  /*
-   * Generates the hashes to respond to the server with.
-   *
-   * @param master_secret the master_secret to use
-   * @param client_random the client's random value
-   * @param server_random the server's random value
-   * @param transmitted_messages the values that have been sent so far
-   * @return array with the md5 and sha hashes
-   */
-  var get_hashes = function(master_secret, client_random, server_random, transmitted_messages) {
-    var padding = generate_padding();
-    var md5_hash = md5(master_secret + padding['md5']['pad2'] + md5(transmitted_messages + SENDER_CLIENT + master_secret + padding['md5']['pad1']));
-    var sha_hash = sha1(master_secret + padding['sha']['pad2'] + sha1(transmitted_messages + SENDER_CLIENT + master_secret + padding['sha']['pad1']));
-    return { md5: md5_hash, sha: sha_hash };
-  };
-
-  /*
-   * Returns the master key.
-   *
-   * @param pre_master_secret the pre_master_secret to use
-   * @param client_random the client's random value
-   * @param server_random the server's random value
-   * @return the master_secret
-   */
-  var get_master_secret = function(pre_master_secret, client_random, server_random) {
-    return md5(pre_master_secret + sha1('A' + pre_master_secret + client_random + server_random)) +
-           md5(pre_master_secret + sha1('BB' + pre_master_secret + client_random + server_random)) +
-           md5(pre_master_secret + sha1('CCC' + pre_master_secret + client_random + server_random));
   };
 
   /*
