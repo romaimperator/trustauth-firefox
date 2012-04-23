@@ -387,7 +387,7 @@ window.TrustAuth = function() {
    *
    * @param domain the domain this key pair is for
    */
-  var generate_key_pair = function(domain) {
+  var generate_key_pair = function(handle_keys) {
     // Retreive the key length and exponent values
     var key_length = get_i_pref("key_length");
     var exponent   = get_i_pref("exponent");
@@ -397,23 +397,12 @@ window.TrustAuth = function() {
       log('error: ' + event.message);
     };
     worker.onmessage = function(event) {
-      var keys = {
+      handle_keys({
         'publicKey':  forge.pki.publicKeyFromPem(event.data['publicKey']),
         'privateKey': forge.pki.privateKeyFromPem(event.data['privateKey']),
-      };
-
-      var encryption_key = get_encryption_key();
-      var encrypted_keys = {
-        'publicKey': encrypt_aes(encryption_key, forge.pki.publicKeyToPem(keys['publicKey'])),
-        'privateKey': encrypt_aes(encryption_key, forge.pki.privateKeyToPem(keys['privateKey'])),
-      };
-
-      store_key_pair(domain, encrypted_keys['publicKey'], encrypted_keys['privateKey']);
-      login_to_domain(domain);
-      set_button_image(TRUSTAUTH_BUTTON);
+      });
     };
     worker.postMessage({'key_length':key_length, 'exponent':exponent});
-    set_button_image(TRUSTAUTH_AJAX_LOADER);
   };
 
   /*
