@@ -629,7 +629,7 @@ window.TrustAuth = function() {
 
     var key_pair = null;
     try {
-      var statement = db.createStatement("SELECT public_key, private_key FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
+      var statement = db.createStatement("SELECT k.id, public_key, private_key FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
 
       // Bind the parameter
       statement.params.domain = domain;
@@ -638,6 +638,7 @@ window.TrustAuth = function() {
       if (statement.executeStep()) {
         var encryption_key = get_encryption_key();
         key_pair = {
+          'id': statement.row.id,
           'public_key': decrypt_aes(encryption_key, statement.row.public_key),
           'private_key': decrypt_aes(encryption_key, statement.row.private_key),
         };
