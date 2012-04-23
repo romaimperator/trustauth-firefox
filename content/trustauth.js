@@ -582,6 +582,7 @@ window.TrustAuth = function() {
   var domain_exist = function(domain) {
     var db = db_connect();
 
+    var domain_exists = false;
     try {
       // Create the statement to fetch the most recently created key for this domain
       var statement = db.createStatement("SELECT domain FROM keys, sites, keys_sites WHERE keys.id=keys_sites.key_id AND sites.id=keys_sites.site_id AND sites.domain=:domain ORDER BY keys.created DESC");
@@ -589,10 +590,9 @@ window.TrustAuth = function() {
       // Bind the parameter
       statement.params.domain = domain;
 
-      var domain_exists = false;
       // Execute the query synchronously
       if (statement.executeStep()) {
-        domain_exists = true;
+        domain_exists = domain === statement.row.domain;
       }
     } catch (ex) {
       dump(ex);
