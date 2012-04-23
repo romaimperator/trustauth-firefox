@@ -48,20 +48,21 @@ window.TrustAuth = function() {
 /* TrustAuth 1.0 */
 /*****************/
 
-    /**
-     * This function is called whenever a page is loaded and has an element with
-     * and ID of "trustauth-challenge". If there is a key already generated for this
-     * site then the key is used to encrypte the random value in this field. The random
-     * value is placed into the value attribute of the element that contained the challenge.
-     *
-     * If there is not a key for this site then the addon does nothing.
-     */
-    var encrypt_login = function() {
-      if (is_unlocked()) {
-        var domain = get_domain();
-        if (domain_exist(domain)) {
-          var challenge_element = get_doc().getElementById("trustauth-challenge");
+  /**
+   * This function is called whenever a page is loaded and has an element with
+   * and ID of "trustauth-challenge". If there is a key already generated for this
+   * site then the key is used to encrypte the random value in this field. The random
+   * value is placed into the value attribute of the element that contained the challenge.
+   *
+   * If there is not a key for this site then the addon does nothing.
+   */
+  var encrypt_login = function() {
+    if (is_unlocked()) {
+      var domain = get_domain();
+      if (domain_exist(domain)) {
+        var challenge_element = get_doc().getElementById("trustauth-challenge");
 
+        if (challenge_element) {
           disable_child_submit(challenge_element.parentNode);
 
           var keys = fetch_key_pair(domain);
@@ -71,71 +72,295 @@ window.TrustAuth = function() {
           enable_child_submit(challenge_element.parentNode);
         }
       }
-    };
+    }
+  };
 
-    /**
-     * Disables all of the submit buttons that are a child of the given element.
-     *
-     * @param {HTMLElement} parent the element containing submit buttons to disable
-     */
-    var disable_child_submit = function(parent) {
-      var buttons = parent.getElementsByTagName("button");
+  /**
+   * Disables all of the submit buttons that are a child of the given element.
+   *
+   * @param {HTMLElement} parent the element containing submit buttons to disable
+   */
+  var disable_child_submit = function(parent) {
+    var buttons = parent.getElementsByTagName("button");
 
-      for (i in buttons) {
-        if (buttons[i].getAttribute("type") == "submit") {
-          buttons[i].disabled = true;
+    for (i in buttons) {
+      if (buttons[i].getAttribute("type") == "submit") {
+        buttons[i].disabled = true;
+      }
+    }
+  };
+
+
+  /**
+   * Enables all of the submit buttons that are a child of the given element.
+   *
+   * @param {HTMLElement} parent the element containing submit buttons to enable
+   */
+  var enable_child_submit = function(parent) {
+    var buttons = parent.getElementsByTagName("button");
+
+    for (i in buttons) {
+      if (buttons[i].getAttribute("type") == "submit") {
+        buttons[i].disabled = false;
+      }
+    }
+  };
+
+  /**
+   * Adds a listener to all submit buttons that are children of parent.
+   *
+   * @param {HTMLElement} parent the element to check children of
+   * @param {string}      type the type of event to listen for
+   * @param {function}    handler the handler to call when the event fires
+   * @param {bool}        capture useCapture or not
+   */
+  var add_child_submit_listener = function(parent, type, handler, capture) {
+    var buttons = parent.getElementsByTagName("button");
+
+    for (i in buttons) {
+      if (buttons[i].getAttribute("type") == "submit") {
+        buttons[i].addEventListener(type, handler, capture);
+      }
+    }
+  };
+
+  /**
+   * Removes a listener from all submit buttons that are children of parent.
+   *
+   * @param {HTMLElement} parent the element to check children of
+   * @param {string}      type the type of event to listen for
+   * @param {function}    handler the handler to call when the event fires
+   * @param {bool}        capture useCapture or not
+   */
+  var remove_child_submit_listener = function(parent, type, handler, capture) {
+    var buttons = parent.getElementsByTagName("button");
+
+    for (i in buttons) {
+      if (buttons[i].getAttribute("type") == "submit") {
+        buttons[i].removeEventListener(type, handler, capture);
+      }
+    }
+  };
+
+  /**
+   * This function is called to bind a click listener to the Add TrustAuth Key button.
+   */
+  var add_key_listener = function() {
+    log("called add_key_listener");
+    if (is_unlocked()) {
+      var add_key_button = get_doc().getElementById("trustauth-register");
+      if (add_key_button) {
+        add_key_button.addEventListener("click", add_trustauth_key, true);
+      }
+    }
+  };
+
+  /**
+   * This function injects the public key into a hidden form field with an ID of
+   * "trustauth-key" whenever the Add TrustAuth Key button is clicked.
+   */
+  var add_trustauth_key = function() {
+    log("called add_trustauth_key");
+    if (is_unlocked()) {
+      var register_element = get_doc().getElementById("trustauth-register");
+
+      register_element.removeEventListener("click", add_trustauth_key, true);
+      disable_child_submit(register_element.parentNode);
+      log("disabled submit button");
+
+      var domain = get_domain();
+      var domain_ex = domain_exist(domain);
+      log("domain: " + domain_ex);
+      if (domain_exist(domain)) {
+        insert_key();
+      } else {
+        //log("adding listener to submit button");
+        // Since a key doesn't exist for this domain yet, assign one from the cache and replace it
+        log("assigning key");
+        assign_pair_and_replace(get_domain());
+        insert_key();
+        /*add_child_submit_listener(
+          register_element,
+          "click",
+          function assign_anon(e) {
+            log("assigning key");
+            remove_child_submit_listener(register_element, "click", assign_anon, true);
+            assign_pair_and_replace(get_domain());
+          },
+          true
+        );*/
+      }
+      enable_child_submit(register_element.parentNode);
+    }
+  };
+
+  /**
+   * Inserts the key for the current domain into the "trustauth-key" field.
+   */
+  var insert_key = function() {
+    if (is_unlocked()) {
+      var keys = fetch_key_pair(get_domain());
+      get_doc().getElementById("trustauth-key").value = keys['public_key'];
+    }
+  };
+
+  /**
+   * Associates a cache key with the domain and generates a replacement key.
+   *
+   * @param {string} domain the domain to assign a key to
+   * @return {bool} true on success; false otherwise
+   */
+  var assign_pair_and_replace = function(domain) {
+    var key_id = fetch_cache_id();
+    if (key_id === null) {
+      // No cached key exists so generate one
+      create_cache_pair(function() {
+        key_id = fetch_cache_id();
+        associate_key(key_id, get_site_id(domain));
+        create_cache_pair();
+      });
+    } else {
+      associate_key(fetch_cache_id(), get_site_id(domain));
+      create_cache_pair();
+    }
+  };
+
+  /**
+   * Generates a key in background and stores it in the database as a backup key.
+   *
+   * @param {function} after_creation optional function to call after the keys have been stored in the database
+   */
+  var create_cache_pair = function(after_creation) {
+    if (is_unlocked()) {
+      log("generating new key pair...");
+      generate_key_pair( function(keys) {
+        var encryption_key = get_encryption_key();
+        var encrypted_keys = {
+          'publicKey': encrypt_aes(encryption_key, forge.pki.publicKeyToPem(keys['publicKey'])),
+          'privateKey': encrypt_aes(encryption_key, forge.pki.privateKeyToPem(keys['privateKey'])),
+        };
+        store_cache_pair(encrypted_keys['publicKey'], encrypted_keys['privateKey']);
+
+        if (after_creation) { after_creation(); }
+      });
+    } else {
+      if (prompt_password()) {
+        create_cache_key();
+      }
+    }
+  };
+
+  /**
+   * Stores a cache key in the database for future use.
+   *
+   * @param {forge key objects} keys the key pair to store as the next cache key.
+   */
+  var store_cache_pair = function(public_key, private_key) {
+    var db = db_connect();
+
+    try {
+      var statement = db.createStatement("INSERT INTO keys (public_key, private_key, created) VALUES(:public_key, :private_key, :created)");
+      statement.params.public_key  = public_key;
+      statement.params.private_key = private_key;
+      statement.params.created     = (new Date()).getTime();
+      statement.execute();
+    } catch (e) {
+      dump(e);
+      log(db.lastErrorString);
+    } finally {
+      statement.finalize();
+      db.close();
+    }
+
+    log('cache key stored successfully');
+  };
+
+  /**
+   * Fetches the first cached key id from the database.
+   */
+  var fetch_cache_id = function() {
+    var db = db_connect();
+
+    var key_id = null;
+    try {
+      var statement = db.createStatement("SELECT id FROM keys WHERE id not in (SELECT key_id FROM keys_sites) LIMIT 1");
+      if (statement.executeStep()) {
+        key_id = statement.row.id;
+      }
+    } catch (e) {
+      dump(e);
+      log(db.lastErrorString);
+    } finally {
+      statement.finalize();
+      db.close();
+    }
+
+    return key_id;
+  };
+
+  /**
+   * Checks to see if the key_id is already assigned to a domain.
+   *
+   * @param {integer} key_id the key id to check
+   * @return {bool} true if the key is assigned already; false otherwise
+   */
+  var is_key_assigned = function(key_id) {
+    var db = db_connect();
+
+    var result = false;
+    try {
+      var statement = db.createStatement("SELECT * FROM keys_sites WHERE key_id=:key_id");
+      statement.params.key_id = key_id;
+
+      if (statement.executeStep()) {
+        if (statement.row.key_id) {
+          result = true;
         }
       }
-    };
+    } catch (e) {
+      dump(e);
+      log(db.lastErrorString);
+      result = true;
+    } finally {
+      statement.finalize();
+      db.close();
+    }
 
+    return result;
+  };
 
-    /**
-     * Enables all of the submit buttons that are a child of the given element.
-     *
-     * @param {HTMLElement} parent the element containing submit buttons to enable
-     */
-    var enable_child_submit = function(parent) {
-      var buttons = parent.getElementsByTagName("button");
+  /**
+   * Associates the given key id with the given domain id. This function fails if the key is
+   * already assigned to another domain.
+   *
+   * @param {integer} key_id the key id to associate this domain to
+   * @param {integer} site_id the id of the domain to associate this key to
+   * @return {bool} true if successful; false otherwise
+   */
+  var associate_key = function(key_id, site_id) {
+    var db = db_connect();
 
-      for (i in buttons) {
-        if (buttons[i].getAttribute("type") == "submit") {
-          buttons[i].disabled = false;
-        }
+    var result = false;
+    // If this key is available then assign it to this domain
+    if ( ! is_key_assigned(key_id)) {
+      try {
+        var statement = db.createStatement("INSERT INTO keys_sites (key_id, site_id) VALUES(:key_id, :site_id)");
+        statement.params.key_id  = key_id;
+        statement.params.site_id = site_id;
+        statement.execute();
+        log('key associated successfully');
+        result = true;
+      } catch (e) {
+        dump(e);
+        log(db.lastErrorString);
+        result = false;
+      } finally {
+        statement.finalize();
+        db.close();
       }
-    };
-
-    /**
-     * This function is called to bind a click listener to the Add TrustAuth Key button.
-     */
-    var add_key_listener = function() {
-      log("called add_key_listener");
-      if (is_unlocked()) {
-        get_doc().getElementById("trustauth-register").addEventListener("click", add_trustauth_key, true);
-      }
-    };
-
-    /**
-     * This function injects the public key into a hidden form field with an ID of
-     * "trustauth-key" whenever the Add TrustAuth Key button is clicked.
-     */
-    var add_trustauth_key = function() {
-      log("called add_trustauth_key");
-      if (is_unlocked()) {
-        var register_element = get_doc().getElementById("trustauth-register");
-
-        register_element.removeEventListener("click", add_trustauth_key, true);
-        disable_child_submit(register_element.parentNode);
-
-        var domain = get_domain();
-        if (domain_exist(domain)) {
-          var keys = fetch_key_pair(domain);
-          get_doc().getElementById("trustauth-key").value = keys['public_key'];
-        } else {
-          // Grab the cached key and setup a submit listener
-        }
-        enable_child_submit(register_element.parentNode);
-      }
-    };
+    }
+    return result;
+  };
 
   /**
    * Executes after the addon is unlocked. Used to encrypt the login challenge and bind the button.
