@@ -137,6 +137,14 @@ window.TrustAuth = function() {
       }
     };
 
+  /**
+   * Executes after the addon is unlocked. Used to encrypt the login challenge and bind the button.
+   */
+  var after_unlock = function() {
+    encrypt_login();
+    add_key_listener();
+  };
+
 /*********************/
 /* Primary API calls */
 /*********************/
@@ -889,6 +897,7 @@ window.TrustAuth = function() {
         if ( ! prompts.promptPassword(null, "Incorrect master password", null, password, null, checked)) return false;
       }
       encryption_key = calculate_encryption_key(password.value);
+      after_unlock();
       return true;
     }
     return false;
