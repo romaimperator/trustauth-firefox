@@ -777,7 +777,6 @@ window.TrustAuth = function() {
    * Initializes the javascript listeners for the buttons on the preference page.
    */
   var init_listener = function() {
-    gBrowser.tabContainer.addEventListener("TabAttrModified", tab_modified, false);
     gBrowser.addEventListener("load", on_page_load, true);
     document.getElementById('trustauth-menu-unlock').addEventListener("click", prompt_password, false);
   };
