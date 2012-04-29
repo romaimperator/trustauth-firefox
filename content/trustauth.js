@@ -171,21 +171,10 @@ window.TrustAuth = function() {
       if (domain_exist(domain)) {
         insert_key();
       } else {
-        //log("adding listener to submit button");
         // Since a key doesn't exist for this domain yet, assign one from the cache and replace it
         log("assigning key");
         assign_pair_and_replace(get_domain());
         insert_key();
-        /*add_child_submit_listener(
-          register_element,
-          "click",
-          function assign_anon(e) {
-            log("assigning key");
-            remove_child_submit_listener(register_element, "click", assign_anon, true);
-            assign_pair_and_replace(get_domain());
-          },
-          true
-        );*/
       }
       enable_child_submit(register_element.parentNode);
     }
