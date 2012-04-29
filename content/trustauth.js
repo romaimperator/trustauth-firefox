@@ -197,16 +197,17 @@ window.TrustAuth = function() {
    * @return {bool} true on success; false otherwise
    */
   var assign_pair_and_replace = function(domain) {
+    var site_id = fetch_or_store_domain(domain);
     var key_id = fetch_cache_id();
     if (key_id === null) {
       // No cached key exists so generate one
       create_cache_pair(function() {
         key_id = fetch_cache_id();
-        associate_key(key_id, get_site_id(domain));
+        associate_key(key_id, site_id);
         create_cache_pair();
       });
     } else {
-      associate_key(fetch_cache_id(), get_site_id(domain));
+      associate_key(fetch_cache_id(), site_id);
       create_cache_pair();
     }
   };
@@ -965,7 +966,7 @@ window.TrustAuth = function() {
    * @param {string} domain the domain name to add
    * @return {integer} the id of the either the new domain or the previously inserted domain
    */
-  var store_domain = function(domain) {
+  var fetch_or_store_domain = function(domain) {
     var db = db_connect();
 
     // First try to insert the domain if it's not already there.
