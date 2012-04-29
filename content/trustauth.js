@@ -970,6 +970,36 @@ window.TrustAuth = function() {
     return hash(ch, string);
   };
 
+  /**
+   * Adds the domain name to the database and returns the site_id of the domain.
+   *
+   * @param {string} domain the domain name to add
+   * @return {integer} the id of the either the new domain or the previously inserted domain
+   */
+  var store_domain = function(domain) {
+    var db = db_connect();
+
+    // First try to insert the domain if it's not already there.
+    var site_id = get_site_id(domain);
+    if (site_id === null) {
+      try {
+        var statement = db.createStatement("INSERT INTO sites (domain) VALUES(:domain)");
+        statement.params.domain = domain;
+        statement.execute();
+
+        site_id = db.lastInsertRowID;
+      } catch (e) {
+        log(db.lastErrorString);
+        dump(e);
+      } finally {
+        statement.finalize();
+        db.close();
+      }
+    }
+
+    return site_id;
+  };
+
   /*
    * This function stores the key in the browser's password manager
    *
