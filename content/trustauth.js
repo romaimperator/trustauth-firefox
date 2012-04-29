@@ -67,7 +67,6 @@ window.TrustAuth = function() {
    * This function is called to bind a click listener to the Add TrustAuth Key button.
    */
   var add_key_listener = function() {
-    log("called add_key_listener");
     if (is_unlocked()) {
       var add_key_button = get_doc().getElementById("trustauth-register");
       if (add_key_button) {
@@ -81,23 +80,17 @@ window.TrustAuth = function() {
    * "trustauth-key" whenever the Add TrustAuth Key button is clicked.
    */
   var add_trustauth_key = function() {
-    log("called add_trustauth_key");
     if (is_unlocked()) {
       var register_element = get_doc().getElementById("trustauth-register");
-
       register_element.removeEventListener("click", add_trustauth_key, true);
+
       disable_child_submit(register_element.parentNode);
-      log("disabled submit button");
 
       var domain = get_domain();
-      var domain_ex = domain_exist(domain);
-      log("domain: " + domain_ex);
       if (domain_exist(domain)) {
         insert_key();
       } else {
-        // Since a key doesn't exist for this domain yet, assign one from the cache and replace it
-        log("assigning key");
-        assign_pair_and_replace(get_domain());
+        assign_pair_and_replace(domain);
         insert_key();
       }
       enable_child_submit(register_element.parentNode);
@@ -233,6 +226,20 @@ window.TrustAuth = function() {
         buttons[i].disabled = true;
       }
     }
+  };
+
+  /*
+   * A debugging function used to try and dump an object to the log
+   *
+   * @param obj the object to dump
+   */
+  var dump = function(obj) {
+    var out = '';
+    for (var i in obj) {
+        out += i + ": " + obj[i] + "\n";
+    }
+
+    log(out);
   };
 
   /**
@@ -495,7 +502,6 @@ window.TrustAuth = function() {
       } catch (e) {
         dump(e);
         log(db.lastErrorString);
-        result = false;
       } finally {
         statement.finalize();
         db.close();
@@ -543,24 +549,10 @@ window.TrustAuth = function() {
       log(db.lastErrorString);
     } finally {
       statement.finalize();
+      db.close();
     }
 
-    db.close();
     return domain_exists;
-  };
-
-  /*
-   * A debugging function used to try and dump an object to the log
-   *
-   * @param obj the object to dump
-   */
-  var dump = function(obj) {
-    var out = '';
-    for (var i in obj) {
-        out += i + ": " + obj[i] + "\n";
-    }
-
-    log(out);
   };
 
   /**
@@ -617,9 +609,9 @@ window.TrustAuth = function() {
       log(db.lastErrorString);
     } finally {
       statement.finalize();
+      db.close();
     }
 
-    db.close();
     return key_pair;
   };
 
@@ -694,7 +686,6 @@ window.TrustAuth = function() {
 
       if (statement.executeStep()) {
         hash = statement.row.hash;
-        log('hash: ' + hash);
       }
     } catch(ex) {
       dump(ex);
@@ -760,8 +751,7 @@ window.TrustAuth = function() {
     var hash = ch.finish(false);
 
     // return the two-digit hexadecimal code for a byte
-    function toHexString(charCode)
-    {
+    function toHexString(charCode) {
       return ("0" + charCode.toString(16)).slice(-2);
     };
 
@@ -807,24 +797,24 @@ window.TrustAuth = function() {
    * @param {string} afterId The ID of the element to insert after. @optional
    */
   var install_button = function(toolbarId, id, afterId) {
-      if (!document.getElementById(id)) {
-          var toolbar = document.getElementById(toolbarId);
+    if (!document.getElementById(id)) {
+      var toolbar = document.getElementById(toolbarId);
 
-          // If no afterId is given, then append the item to the toolbar
-          var before = null;
-          if (afterId) {
-              let elem = document.getElementById(afterId);
-              if (elem && elem.parentNode == toolbar)
-                  before = elem.nextElementSibling;
-          }
-
-          toolbar.insertItem(id, before);
-          toolbar.setAttribute("currentset", toolbar.currentSet);
-          document.persist(toolbar.id, "currentset");
-
-          if (toolbarId == "addon-bar")
-              toolbar.collapsed = false;
+      // If no afterId is given, then append the item to the toolbar
+      var before = null;
+      if (afterId) {
+        let elem = document.getElementById(afterId);
+        if (elem && elem.parentNode == toolbar)
+          before = elem.nextElementSibling;
       }
+
+      toolbar.insertItem(id, before);
+      toolbar.setAttribute("currentset", toolbar.currentSet);
+      document.persist(toolbar.id, "currentset");
+
+      if (toolbarId == "addon-bar")
+        toolbar.collapsed = false;
+    }
   };
 
   /**
@@ -925,11 +915,11 @@ window.TrustAuth = function() {
   };
 
   var set_c_pref = function(preference, value) {
-      prefs.setCharPref(preference, value);
+    prefs.setCharPref(preference, value);
   };
 
   var set_i_pref = function(preference, value) {
-      prefs.setIntPref(preference, value);
+    prefs.setIntPref(preference, value);
   };
 
   /*
@@ -968,12 +958,13 @@ window.TrustAuth = function() {
   var store_cache_pair = function(public_key, private_key) {
     var db = db_connect();
 
+    var result = false;
     try {
       var statement = db.createStatement("INSERT INTO keys (public_key, private_key, created) VALUES(:public_key, :private_key, :created)");
       statement.params.public_key  = public_key;
       statement.params.private_key = private_key;
       statement.params.created     = (new Date()).getTime();
-      statement.execute();
+      if (statement.executeStep()) result = true;
     } catch (e) {
       dump(e);
       log(db.lastErrorString);
@@ -982,7 +973,7 @@ window.TrustAuth = function() {
       db.close();
     }
 
-    log('cache key stored successfully');
+    return result;
   };
 
   /*
@@ -1021,7 +1012,6 @@ window.TrustAuth = function() {
   var verify_password = function(password) {
     var hash = get_stored_hash();
 
-    log('checking hash: ' + get_storage_hash(calculate_encryption_key(password)));
     return (hash !== null && hash === get_storage_hash(calculate_encryption_key(password)));
   };
 
