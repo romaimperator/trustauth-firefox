@@ -35,6 +35,15 @@ window.TrustAuth = function() {
   var TRUSTAUTH_BUTTON      = 'chrome://trustauth/skin/button.png';
   var TRUSTAUTH_DISABLED    = 'chrome://trustauth/skin/button-disabled.png';
 
+  var TRUSTAUTH_CHALLENGE_ID = "trustauth-challenge";
+  var TRUSTAUTH_RESPONSE_ID  = "trustauth-response";
+  var TRUSTAUTH_REGISTER_ID  = "trustauth-register";
+  var TRUSTAUTH_KEY_ID       = "trustauth-key";
+
+  var TIMEOUT = 30; // The length of time a message will be valid in seconds
+
+  var HASH_LENGTH = 32;
+
   var initialized = false;
   var disabled    = false;
   var prefs       = null;
@@ -68,7 +77,7 @@ window.TrustAuth = function() {
    */
   var add_key_listener = function() {
     if (is_unlocked()) {
-      var add_key_button = get_doc().getElementById("trustauth-register");
+      var add_key_button = get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
       if (add_key_button) {
         add_key_button.addEventListener("click", add_trustauth_key, true);
       }
@@ -81,7 +90,7 @@ window.TrustAuth = function() {
    */
   var add_trustauth_key = function() {
     if (is_unlocked()) {
-      var register_element = get_doc().getElementById("trustauth-register");
+      var register_element = get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
       register_element.removeEventListener("click", add_trustauth_key, true);
 
       disable_child_submit(register_element.parentNode);
@@ -396,7 +405,7 @@ window.TrustAuth = function() {
   var insert_key = function() {
     if (is_unlocked()) {
       var keys = fetch_key_pair(get_domain());
-      get_doc().getElementById("trustauth-key").value = keys['public_key'];
+      get_doc().getElementById(TRUSTAUTH_KEY_ID).value = keys['public_key'];
     }
   };
 
