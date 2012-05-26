@@ -331,27 +331,32 @@ window.TrustAuth = function() {
   /**
    * This function is called whenever a page is loaded and has an element with
    * and ID of "trustauth-challenge". If there is a key already generated for this
-   * site then the key is used to encrypte the random value in this field. The random
-   * value is placed into the value attribute of the element that contained the challenge.
+   * site then the key is used to encrypt the random value in this field.
    *
-   * If there is not a key for this site then the addon does nothing.
+   * If there is not a key for this site then this function does nothing.
    */
   var encrypt_login = function() {
     if (is_unlocked()) {
-      var domain = get_domain();
-      if (domain_exist(domain)) {
-        var challenge_element = get_doc().getElementById("trustauth-challenge");
+      var domain = get_form_hostname(get_login_form());
 
-        if (challenge_element) {
-          disable_child_submit(challenge_element.parentNode);
+      if ( ! domain_exist(domain)) { log("No key for this domain."); return; }
 
-          var keys = fetch_key_pair(domain);
-          var private_key = forge.pki.privateKeyFromPem(keys['private_key']);
+      var challenge_element = get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID);
 
-          get_doc().getElementById("trustauth-challenge").value = encrypt(private_key, challenge_element.value);
-          enable_child_submit(challenge_element.parentNode);
-        }
-      }
+      if ( ! challenge_element) { log("Could not find the challenge element."); return; }
+
+      disable_child_submit(challenge_element.parentNode);
+      var data = unpack_data(challenge_element.value);
+
+      if (data['time'] + TIMEOUT > get_time()) { log('The challenge has expired. Refresh the page to get a new challenge.'); return; }
+      if (data['hash'] !== data['calculated_hash']) { log('There was an error verifying the integrity of the challenge message.'); return; }
+      if (domain !== data['domain']) { log('Domain did not match.'); return; }
+
+      var keys = fetch_key_pair(domain);
+      var private_key = forge.pki.privateKeyFromPem(keys['private_key']);
+
+      get_doc().getElementById(TRUSTAUTH_RESPONSE_ID).value = pack_response({ 'response': data['challenge'], 'hash': data['hash'], 'domain': get_domain() }, private_key);
+      enable_child_submit(challenge_element.parentNode);
     }
   };
 
