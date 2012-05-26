@@ -354,7 +354,7 @@ window.TrustAuth = function() {
       disable_child_submit(challenge_element.parentNode);
       var data = unpack_data(challenge_element.value);
 
-      if (data['time'] + TIMEOUT > get_time()) { log('The challenge has expired. Refresh the page to get a new challenge.'); return; }
+      if (data['time'] + TIMEOUT < get_time()) { log('The challenge has expired. Refresh the page to get a new challenge.'); return; }
       if (data['hash'] !== data['calculated_hash']) { log('There was an error verifying the integrity of the challenge message.'); return; }
       if (domain !== data['domain']) { log('Domain did not match.'); return; }
 
