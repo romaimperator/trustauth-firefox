@@ -228,11 +228,13 @@ window.TrustAuth = function() {
    * @param {HTMLElement} parent the element containing submit buttons to disable
    */
   var disable_child_submit = function(parent) {
-    var buttons = parent.getElementsByTagName("button");
+    var buttons = [parent.getElementsByTagName("button"), parent.getElementsByTagName("submit")];
 
     for (i in buttons) {
-      if (buttons[i].getAttribute("type") == "submit") {
-        buttons[i].disabled = true;
+      for (var j = 0; j < buttons[i].length; j++) {
+        if (buttons[i][j].getAttribute("type") == "submit") {
+          buttons[i][j].disabled = true;
+        }
       }
     }
   };
@@ -257,11 +259,13 @@ window.TrustAuth = function() {
    * @param {HTMLElement} parent the element containing submit buttons to enable
    */
   var enable_child_submit = function(parent) {
-    var buttons = parent.getElementsByTagName("button");
+    var buttons = [parent.getElementsByTagName("button"), parent.getElementsByTagName("submit")];
 
     for (i in buttons) {
-      if (buttons[i].getAttribute("type") == "submit") {
-        buttons[i].disabled = false;
+      for (var j = 0; j < buttons[i].length; j++) {
+        if (buttons[i][j].getAttribute("type") == "submit") {
+          buttons[i][j].disabled = false;
+        }
       }
     }
   };
