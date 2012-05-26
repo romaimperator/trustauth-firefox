@@ -382,6 +382,15 @@ window.TrustAuth = function() {
   };
 
   /**
+   * Returns the current time since the epoch in seconds.
+   *
+   * @return {int} the current time in seconds since the epoch
+   */
+  var get_time = function() {
+    return Math.round((new Date()).getTime() / 1000);
+  };
+
+  /**
    * Inserts the key for the current domain into the "trustauth-key" field.
    */
   var insert_key = function() {
@@ -962,7 +971,7 @@ window.TrustAuth = function() {
       var statement = db.createStatement("INSERT INTO keys (public_key, private_key, created) VALUES(:public_key, :private_key, :created)");
       statement.params.public_key  = public_key;
       statement.params.private_key = private_key;
-      statement.params.created     = (new Date()).getTime();
+      statement.params.created     = get_time();
       if (statement.executeStep()) result = true;
     } catch (e) {
       dump(e);
