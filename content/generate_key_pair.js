@@ -26,18 +26,18 @@
 var window = {};
 onmessage = function(event) {
   importScripts(
-    "chrome://trustauth/content/jsbn.js",
-    "chrome://trustauth/content/util.js",
-    "chrome://trustauth/content/aes.js",
-    "chrome://trustauth/content/asn1.js",
-    "chrome://trustauth/content/md5.js",
-    "chrome://trustauth/content/sha1.js",
-    "chrome://trustauth/content/sha256.js",
-    "chrome://trustauth/content/oids.js",
-    "chrome://trustauth/content/prng.js",
-    "chrome://trustauth/content/random.js",
-    "chrome://trustauth/content/rsa.js",
-    "chrome://trustauth/content/pki.js"
+    "chrome://trustauth/content/forge/jsbn.js",
+    "chrome://trustauth/content/forge/util.js",
+    "chrome://trustauth/content/forge/aes.js",
+    "chrome://trustauth/content/forge/asn1.js",
+    "chrome://trustauth/content/forge/md5.js",
+    "chrome://trustauth/content/forge/sha1.js",
+    "chrome://trustauth/content/forge/sha256.js",
+    "chrome://trustauth/content/forge/oids.js",
+    "chrome://trustauth/content/forge/prng.js",
+    "chrome://trustauth/content/forge/random.js",
+    "chrome://trustauth/content/forge/rsa.js",
+    "chrome://trustauth/content/forge/pki.js"
   );
 
   var key_length = event.data['key_length'];

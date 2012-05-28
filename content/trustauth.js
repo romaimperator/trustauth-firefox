@@ -1096,7 +1096,7 @@ window.TrustAuth = function() {
    * @param image the image url to change the image to
    */
   var set_button_image = function(image) {
-    jQuery('#trustauth-main-button', document).attr('image', image);
+    document.getElementById('trustauth-main-button').setAttribute('image', image);
   };
 
   var set_c_pref = function(preference, value) {
