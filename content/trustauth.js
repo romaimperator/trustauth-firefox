@@ -27,6 +27,8 @@
 
 if (typeof(window) !== "undefined") {
 
+Components.utils.import("chrome://trustauth/content/utils.jsm");
+
 window.TrustAuth = function() {
   var TRUSTAUTH_ENC_KEY_SALT = '2EEC776BE2291D76E7C81706BD0E36C0C10D62A706ADB12D2799CA731503FBBA';
   var TRUSTAUTH_STORAGE_SALT = '7CAB8505B677344B34B83C77B6A3EF527DC31FEFDF531B9F5F623DCE040A4351';
@@ -61,24 +63,6 @@ window.TrustAuth = function() {
 /*****************************/
 
   /**
-   * Adds a listener to all submit buttons that are children of parent.
-   *
-   * @param {HTMLElement} parent the element to check children of
-   * @param {string}      type the type of event to listen for
-   * @param {function}    handler the handler to call when the event fires
-   * @param {bool}        capture useCapture or not
-   */
-  var add_child_submit_listener = function(parent, type, handler, capture) {
-    var buttons = parent.getElementsByTagName("button");
-
-    for (i in buttons) {
-      if (buttons[i].getAttribute("type") == "submit") {
-        buttons[i].addEventListener(type, handler, capture);
-      }
-    }
-  };
-
-  /**
    * This function is called to bind a click listener to the Add TrustAuth Key button.
    */
   var add_key_listener = function() {
@@ -99,7 +83,7 @@ window.TrustAuth = function() {
       var register_element = get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
       register_element.removeEventListener("click", add_trustauth_key, true);
 
-      disable_child_submit(register_element.parentNode);
+      utils.disable_child_submit(register_element.parentNode);
 
       var domain = get_domain();
       if (domain_exist(domain)) {
@@ -108,7 +92,7 @@ window.TrustAuth = function() {
         assign_pair_and_replace(domain);
         insert_key();
       }
-      enable_child_submit(register_element.parentNode);
+      utils.enable_child_submit(register_element.parentNode);
     }
   };
 
@@ -140,16 +124,6 @@ window.TrustAuth = function() {
       associate_key(fetch_cache_id(), site_id);
       create_cache_pair();
     }
-  };
-
-  /*
-   * Calculates the encryption key for the key pairs
-   *
-   * @param password the password to use
-   * @return the encryption key
-   */
-  var calculate_encryption_key = function(password) {
-    return sha256(password + TRUSTAUTH_ENC_KEY_SALT);
   };
 
   /**
@@ -184,23 +158,7 @@ window.TrustAuth = function() {
    * @return the decoded string
    */
   var decode_bytes = function(bytes) {
-    return decode_hex(forge.util.bytesToHex(bytes));
-  };
-
-  /*
-   * Decodes an string from hex
-   *
-   * @param hex the hex string to decode
-   * @return the decoded string
-   */
-  var decode_hex = function(hex) {
-    var retval = '';
-    var i = 0;
-
-    for(; i < hex.length; i+= 2) {
-      retval += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
-    }
-    return retval;
+    return utils.decode_hex(forge.util.bytesToHex(bytes));
   };
 
   /*
@@ -225,24 +183,7 @@ window.TrustAuth = function() {
     var cipher = forge.aes.startDecrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(TRUSTAUTH_ENC_KEY_SALT), null);
     cipher.update(forge.util.createBuffer(forge.util.hexToBytes(data)));
     cipher.finish();
-    return decode_hex(cipher.output.toHex());
-  };
-
-  /**
-   * Disables all of the submit buttons that are a child of the given element.
-   *
-   * @param {HTMLElement} parent the element containing submit buttons to disable
-   */
-  var disable_child_submit = function(parent) {
-    var buttons = [parent.getElementsByTagName("button"), parent.getElementsByTagName("submit")];
-
-    for (i in buttons) {
-      for (var j = 0; j < buttons[i].length; j++) {
-        if (buttons[i][j].getAttribute("type") == "submit") {
-          buttons[i][j].disabled = true;
-        }
-      }
-    }
+    return utils.decode_hex(cipher.output.toHex());
   };
 
   /*
@@ -259,23 +200,6 @@ window.TrustAuth = function() {
     log(out);
   };
 
-  /**
-   * Enables all of the submit buttons that are a child of the given element.
-   *
-   * @param {HTMLElement} parent the element containing submit buttons to enable
-   */
-  var enable_child_submit = function(parent) {
-    var buttons = [parent.getElementsByTagName("button"), parent.getElementsByTagName("submit")];
-
-    for (i in buttons) {
-      for (var j = 0; j < buttons[i].length; j++) {
-        if (buttons[i][j].getAttribute("type") == "submit") {
-          buttons[i][j].disabled = false;
-        }
-      }
-    }
-  };
-
   /*
    * Encodes a unicode string as hex
    *
@@ -283,30 +207,7 @@ window.TrustAuth = function() {
    * @return the hex encoded string
    */
   var encode_bytes = function(string) {
-    return forge.util.hexToBytes(encode_hex(string));
-  };
-
-  /*
-   * Encodes an ASCII string as hex
-   *
-   * @param string the string to convert
-   * @return the hex encoded string
-   */
-  var encode_hex = function(string) {
-    var retval = '';
-    var i = 0;
-    var tmp = '';
-
-    for(; i < string.length; i++) {
-      tmp = string.charCodeAt(i).toString(16);
-      if (tmp.length === 1) {
-        tmp = '0' + tmp;
-      } else if (tmp.length !== 2) {
-        log('encode of: ' + string + ' produced character length of: ' + tmp.length + ' at character: ' + i);
-      }
-      retval += tmp;
-    }
-    return retval;
+    return forge.util.hexToBytes(utils.encode_hex(string));
   };
 
   /*
@@ -343,7 +244,7 @@ window.TrustAuth = function() {
    */
   var encrypt_login = function() {
     if (is_unlocked()) {
-      var domain = get_form_hostname(get_login_form());
+      var domain = utils.get_form_hostname(get_login_form());
 
       if ( ! domain_exist(domain)) { log("No key for this domain."); return; }
 
@@ -351,10 +252,10 @@ window.TrustAuth = function() {
 
       if ( ! challenge_element) { log("Could not find the challenge element."); return; }
 
-      disable_child_submit(challenge_element.parentNode);
+      utils.disable_child_submit(challenge_element.parentNode);
       var data = unpack_data(challenge_element.value);
 
-      if (data['time'] + TIMEOUT < get_time()) { log('The challenge has expired. Refresh the page to get a new challenge.'); return; }
+      if (data['time'] + TIMEOUT < utils.get_time()) { log('The challenge has expired. Refresh the page to get a new challenge.'); return; }
       if (data['hash'] !== data['calculated_hash']) { log('There was an error verifying the integrity of the challenge message.'); return; }
       if (domain !== data['domain']) { log('Domain did not match.'); return; }
 
@@ -362,7 +263,7 @@ window.TrustAuth = function() {
       var private_key = forge.pki.privateKeyFromPem(keys['private_key']);
 
       get_doc().getElementById(TRUSTAUTH_RESPONSE_ID).value = pack_response({ 'response': data['challenge'], 'hash': data['hash'], 'domain': domain }, private_key);
-      enable_child_submit(challenge_element.parentNode);
+      utils.enable_child_submit(challenge_element.parentNode);
     }
   };
 
@@ -395,27 +296,6 @@ window.TrustAuth = function() {
   };
 
   /**
-   * Returns the hostname from the form element's action attribute.
-   *
-   * @param {HTMLNode} form_element the form element to get the hostname from
-   * @return {string} the hostname from the form's action
-   */
-  var get_form_hostname = function(form_element) {
-    var action = form_element.getAttribute("action");
-    return get_hostname_from_url(relative_to_absolute(action));
-  };
-
-  /**
-   * Returns the hostname from the given URL.
-   *
-   * @param {string} url the url to parse
-   * @return {string} the hostname from the url
-   */
-  var get_hostname_from_url = function(url) {
-    return url.replace("http://", "").replace("https://", "").split("/")[0];
-  };
-
-  /**
    * Returns the form element containing the TrustAuth challenge element.
    *
    * @return {HTMLNode} the login form element
@@ -432,16 +312,7 @@ window.TrustAuth = function() {
    * @return the hash of the key
    */
   var get_storage_hash = function(encryption_key) {
-    return sha256(encryption_key + TRUSTAUTH_STORAGE_SALT);
-  };
-
-  /**
-   * Returns the current time since the epoch in seconds.
-   *
-   * @return {int} the current time in seconds since the epoch
-   */
-  var get_time = function() {
-    return Math.round((new Date()).getTime() / 1000);
+    return utils.sha256(encryption_key + TRUSTAUTH_STORAGE_SALT);
   };
 
   /**
@@ -452,16 +323,6 @@ window.TrustAuth = function() {
       var keys = fetch_key_pair(get_domain());
       get_doc().getElementById(TRUSTAUTH_KEY_ID).value = keys['public_key'];
     }
-  };
-
-  /*
-   * Checks to see if the variable is set.
-   *
-   * @param variable the variable to check
-   * @return true if it is, false otherwise
-   */
-  var isset = function(variable) {
-      return typeof(variable) != "undefined" && variable !== null;
   };
 
   /*
@@ -510,7 +371,7 @@ window.TrustAuth = function() {
     var b = forge.util.createBuffer();
     if (type === MESSAGE_TYPE['response']) {
       b.putByte(type);
-      b.putBytes(forge.util.hexToBytes(pad_front(data['time'].toString(16), 8, '0')));
+      b.putBytes(forge.util.hexToBytes(utils.pad_front(data['time'].toString(16), 8, '0')));
       var encoded_response = encode_bytes(data['response']);
       var encoded_domain   = encode_bytes(data['domain']);
       b.putInt16(encoded_response.length);
@@ -518,7 +379,7 @@ window.TrustAuth = function() {
       b.putBytes(encoded_response);
       b.putBytes(encoded_domain);
       b.putBytes(forge.util.hexToBytes(data['hash']));
-      var encrypted_hash = encrypt(key, sha256(b.toHex()));
+      var encrypted_hash = encrypt(key, utils.sha256(b.toHex()));
       b.putInt16(encrypted_hash.length);
       b.putBytes(forge.util.hexToBytes(encrypted_hash));
       return b.toHex();
@@ -551,7 +412,7 @@ window.TrustAuth = function() {
         'challenge': decode_bytes(b.getBytes(meta['challenge_length'])),
         'domain'   : decode_bytes(b.getBytes(meta['domain_length'])),
         'hash'     : forge.util.bytesToHex(b.getBytes(HASH_LENGTH)),
-        'calculated_hash': sha256(hash_buf.toHex()),
+        'calculated_hash': utils.sha256(hash_buf.toHex()),
       };
     } else {
       log("Unrecognized message type: " + type);
@@ -572,23 +433,8 @@ window.TrustAuth = function() {
    * @return {hex string} the packed response
    */
   var pack_response = function(data, key) {
-    data.time = get_time();
+    data.time = utils.get_time();
     return pack_data(MESSAGE_TYPE['response'], data, key);
-  };
-
-  /**
-   * Pads the front of a string with a given character until the string reaches length.
-   *
-   * @param {string} str the string to pad
-   * @param {int} length the length to pad the string to
-   * @param {char} pad_char the character to pad the string with
-   * @return {string} the padded string
-   */
-  var pad_front = function(str, length, pad_char) {
-    for (var i = str.length; i < length; i++) {
-      str = pad_char + str;
-    }
-    return str;
   };
 
   /*
@@ -628,36 +474,18 @@ window.TrustAuth = function() {
     }
   };
 
+
   /**
    * Converts an absolute or relative URL to an absolute URL.
    *
    * @param {string} url the URL to convert
    * @return {string} the absolute URL
    */
-  var relative_to_absolute = function(url) {
+  utils.relative_to_absolute = function(url) {
     var a = get_doc().createElement('a');
     a.href = url;
     return a.href;
   };
-
-  /**
-   * Removes a listener from all submit buttons that are children of parent.
-   *
-   * @param {HTMLElement} parent the element to check children of
-   * @param {string}      type the type of event to listen for
-   * @param {function}    handler the handler to call when the event fires
-   * @param {bool}        capture useCapture or not
-   */
-  var remove_child_submit_listener = function(parent, type, handler, capture) {
-    var buttons = parent.getElementsByTagName("button");
-
-    for (i in buttons) {
-      if (buttons[i].getAttribute("type") == "submit") {
-        buttons[i].removeEventListener(type, handler, capture);
-      }
-    }
-  };
-
 
 
 /******************************/
@@ -912,40 +740,6 @@ window.TrustAuth = function() {
   };
 
   /*
-   * The abstract function to use the firefox object to calculate the hash
-   * using the browser function instead of a javascript function.
-   *
-   * @param ch the crypto hash object initalized to the correct hash function
-   * @param string the string to hash
-   * @return the calculated hash
-   */
-  var hash = function(ch, string) {
-    var converter = Components.classes["@mozilla.org/intl/scriptableunicodeconverter"]
-                    .createInstance(Components.interfaces.nsIScriptableUnicodeConverter);
-    // Set the UTF-8 encoding
-    converter.charset = "ASCII";
-
-    // result is an out parameter,
-    // result.value will contain the array length
-    var result = {};
-
-    // data is an array of bytes
-    var data = converter.convertToByteArray(string, result);
-
-    ch.update(data, data.length);
-
-    var hash = ch.finish(false);
-
-    // return the two-digit hexadecimal code for a byte
-    function toHexString(charCode) {
-      return ("0" + charCode.toString(16)).slice(-2);
-    };
-
-    // convert the binary hash data to a hex string.
-    return [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
-  };
-
-  /*
    * Initializes the place to store the public and private key pairs.
    */
   var init_db = function() {
@@ -1058,7 +852,7 @@ window.TrustAuth = function() {
 
     prompts.promptPassword(null, message, null, password, null, checked);
     if (password.value !== null) {
-      encryption_key = calculate_encryption_key(password.value);
+      encryption_key = utils.calculate_encryption_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
       store_encryption_key(encryption_key);
     }
   };
@@ -1079,7 +873,7 @@ window.TrustAuth = function() {
       while ( ! verify_password(password.value)) {
         if ( ! prompts.promptPassword(null, "Incorrect master password", null, password, null, checked)) return false;
       }
-      encryption_key = calculate_encryption_key(password.value);
+      encryption_key = utils.calculate_encryption_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
       after_unlock();
       return true;
     }
@@ -1107,34 +901,6 @@ window.TrustAuth = function() {
     prefs.setIntPref(preference, value);
   };
 
-  /*
-   * Calculates the sha-256 hash of the given string
-   *
-   * @param string the string to hash
-   * @return the sha-256 hash
-   */
-  var sha256 = function(string) {
-    // Get the hash function object
-    var ch = Components.classes["@mozilla.org/security/hash;1"]
-                   .createInstance(Components.interfaces.nsICryptoHash);
-    ch.init(ch.SHA256);
-    return hash(ch, string);
-  };
-
-  /*
-   * Calculates the sha-512 hash of the given string
-   *
-   * @param string the string to hash
-   * @return the sha-512 hash
-   */
-  var sha512 = function(string) {
-    // Get the hash function object
-    var ch = Components.classes["@mozilla.org/security/hash;1"]
-                   .createInstance(Components.interfaces.nsICryptoHash);
-    ch.init(ch.SHA512);
-    return hash(ch, string);
-  };
-
   /**
    * Stores a cache key in the database for future use.
    *
@@ -1148,7 +914,7 @@ window.TrustAuth = function() {
       var statement = db.createStatement("INSERT INTO keys (public_key, private_key, created) VALUES(:public_key, :private_key, :created)");
       statement.params.public_key  = public_key;
       statement.params.private_key = private_key;
-      statement.params.created     = get_time();
+      statement.params.created     = utils.get_time();
       if (statement.executeStep()) result = true;
     } catch (e) {
       dump(e);
@@ -1197,7 +963,7 @@ window.TrustAuth = function() {
   var verify_password = function(password) {
     var hash = get_stored_hash();
 
-    return (hash !== null && hash === get_storage_hash(calculate_encryption_key(password)));
+    return (hash !== null && hash === get_storage_hash(utils.calculate_encryption_key(password, TRUSTAUTH_ENC_KEY_SALT)));
   };
 
   // Initialize the TrustAuth object
