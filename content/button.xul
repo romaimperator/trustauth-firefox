@@ -17,7 +17,7 @@
       image="chrome://trustauth/skin/button.png"
       class="toolbarbutton-1 chromeclass-toolbar-additional trustauth-button">
       <menupopup>
-        <menuitem id="trustauth-menu-login" label="Login" oncommand=""/>
+        <menuitem id="trustauth-menu-unlock" label="Unlock" oncommand=""/>
       </menupopup>
     </toolbarbutton>
   </toolbarpalette>
