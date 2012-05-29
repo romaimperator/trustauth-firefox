@@ -1,5 +1,5 @@
 /**
- * This is the cryptography functions for the TrustAuth addon. This is browser independent code.
+ * These are the cryptography functions for the TrustAuth addon. This is browser independent code.
  *
  * @author Daniel Fox
  * @link trustauth.com
