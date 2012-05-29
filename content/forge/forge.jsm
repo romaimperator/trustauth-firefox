@@ -25,8 +25,6 @@
  */
 var EXPORTED_SYMBOLS = [ 'forge' ];
 
-Components.utils.import("chrome://trustauth/content/utils.jsm");
-
 /* This function was taken from the forum post on this page: http://forums.mozillazine.org/viewtopic.php?p=921150#921150 */
 function getContents(aURL){
   var ioService=Components.classes["@mozilla.org/network/io-service;1"]
