@@ -31,10 +31,35 @@ Components.utils.import("chrome://trustauth/content/forge/forge.jsm");
 Components.utils.import("chrome://trustauth/content/utils.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 
-window.TrustAuth = function() {
+/* These are the firefox specific utility functions that must be implemented. */
 
+/*
+ * Logs a message to the console as a TrustAuth message.
+ *
+ * @param message the message to log
+ */
+utils.log = function(message) {
+    var console = Components.classes['@mozilla.org/consoleservice;1'].
+              getService(Components.interfaces.nsIConsoleService);
+    console.logStringMessage('TrustAuth: ' + message);
+};
 
+/*
+ * Initializes the doc attribute with the document of the current page.
+ */
+utils.get_doc = function() {
+  return content.document;
+};
 
+/*
+ * Returns the domain of the current page.
+ * @return the current page's domain
+ */
+utils.get_domain = function() {
+  return utils.get_doc().domain;
+};
+
+(function() {
 
   var initialized = false;
   var disabled    = false;
@@ -47,13 +72,16 @@ window.TrustAuth = function() {
 /*****************************/
 /* Pure Javascript functions */
 /*****************************/
+  var log = function(message) {
+    utils.log(message);
+  };
 
   /**
    * This function is called to bind a click listener to the Add TrustAuth Key button.
    */
   var add_key_listener = function() {
     if (is_unlocked()) {
-      var add_key_button = get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
+      var add_key_button = utils.get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
       if (add_key_button) {
         add_key_button.addEventListener("click", add_trustauth_key, true);
       }
@@ -66,19 +94,19 @@ window.TrustAuth = function() {
    */
   var add_trustauth_key = function() {
     if (is_unlocked()) {
-      var register_element = get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
+      var register_element = utils.get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
       register_element.removeEventListener("click", add_trustauth_key, true);
 
       utils.disable_child_submit(register_element.parentNode);
 
-      var domain = get_domain();
       if (domain_exist(domain)) {
+      var domain = utils.get_domain();
         insert_key();
+        utils.enable_child_submit(register_element.parentNode);
       } else {
         assign_pair_and_replace(domain);
         insert_key();
       }
-      utils.enable_child_submit(register_element.parentNode);
     }
   };
 
@@ -138,16 +166,6 @@ window.TrustAuth = function() {
   };
 
   /*
-   * Decodes an string from bytes
-   *
-   * @param bytes the bytes to decode
-   * @return the decoded string
-   */
-  var decode_bytes = function(bytes) {
-    return utils.decode_hex(forge.util.bytesToHex(bytes));
-  };
-
-  /*
    * Decrypts the hex data with the key.
    *
    * @param key the decryption key as forge key object
@@ -170,30 +188,6 @@ window.TrustAuth = function() {
     cipher.update(forge.util.createBuffer(forge.util.hexToBytes(data)));
     cipher.finish();
     return utils.decode_hex(cipher.output.toHex());
-  };
-
-  /*
-   * A debugging function used to try and dump an object to the log
-   *
-   * @param obj the object to dump
-   */
-  var dump = function(obj) {
-    var out = '';
-    for (var i in obj) {
-        out += i + ": " + obj[i] + "\n";
-    }
-
-    log(out);
-  };
-
-  /*
-   * Encodes a unicode string as hex
-   *
-   * @param string the string to convert
-   * @return the hex encoded string
-   */
-  var encode_bytes = function(string) {
-    return forge.util.hexToBytes(utils.encode_hex(string));
   };
 
   /*
@@ -234,7 +228,7 @@ window.TrustAuth = function() {
 
       if ( ! domain_exist(domain)) { log("No key for this domain."); return; }
 
-      var challenge_element = get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID);
+      var challenge_element = utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID);
 
       if ( ! challenge_element) { log("Could not find the challenge element."); return; }
 
@@ -248,7 +242,7 @@ window.TrustAuth = function() {
       var keys = fetch_key_pair(domain);
       var private_key = forge.pki.privateKeyFromPem(keys['private_key']);
 
-      get_doc().getElementById(TRUSTAUTH_RESPONSE_ID).value = pack_response({ 'response': data['challenge'], 'hash': data['hash'], 'domain': domain }, private_key);
+      utils.get_doc().getElementById(TRUSTAUTH_RESPONSE_ID).value = pack_response({ 'response': data['challenge'], 'hash': data['hash'], 'domain': domain }, private_key);
       utils.enable_child_submit(challenge_element.parentNode);
     }
   };
@@ -287,7 +281,7 @@ window.TrustAuth = function() {
    * @return {HTMLNode} the login form element
    */
   var get_login_form = function() {
-    return get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).parentNode;
+    return utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).parentNode;
   };
 
   /*
@@ -307,7 +301,7 @@ window.TrustAuth = function() {
   var insert_key = function() {
     if (is_unlocked()) {
       var keys = fetch_key_pair(get_domain());
-      get_doc().getElementById(TRUSTAUTH_KEY_ID).value = keys['public_key'];
+      utils.get_doc().getElementById(TRUSTAUTH_KEY_ID).value = keys['public_key'];
     }
   };
 
@@ -358,8 +352,8 @@ window.TrustAuth = function() {
     if (type === MESSAGE_TYPE['response']) {
       b.putByte(type);
       b.putBytes(forge.util.hexToBytes(utils.pad_front(data['time'].toString(16), 8, '0')));
-      var encoded_response = encode_bytes(data['response']);
-      var encoded_domain   = encode_bytes(data['domain']);
+      var encoded_response = utils.encode_bytes(data['response']);
+      var encoded_domain   = utils.encode_bytes(data['domain']);
       b.putInt16(encoded_response.length);
       b.putInt16(encoded_domain.length);
       b.putBytes(encoded_response);
@@ -395,8 +389,8 @@ window.TrustAuth = function() {
       return {
         'type'     : type,
         'time'     : meta['time'],
-        'challenge': decode_bytes(b.getBytes(meta['challenge_length'])),
-        'domain'   : decode_bytes(b.getBytes(meta['domain_length'])),
+        'challenge': utils.decode_bytes(b.getBytes(meta['challenge_length'])),
+        'domain'   : utils.decode_bytes(b.getBytes(meta['domain_length'])),
         'hash'     : forge.util.bytesToHex(b.getBytes(HASH_LENGTH)),
         'calculated_hash': utils.sha256(hash_buf.toHex()),
       };
@@ -653,21 +647,6 @@ window.TrustAuth = function() {
       return prefs.getCharPref(preference);
   };
 
-  /*
-   * Initializes the doc attribute with the document of the current page.
-   */
-  var get_doc = function() {
-    return content.document;
-  };
-
-  /*
-   * Returns the domain of the current page.
-   * @return the current page's domain
-   */
-  var get_domain = function() {
-    return get_doc().domain;
-  };
-
   var get_i_pref = function(preference) {
       return prefs.getIntPref(preference);
   };
@@ -814,17 +793,6 @@ window.TrustAuth = function() {
   };
 
   /*
-   * Logs a message to the console as a TrustAuth message.
-   *
-   * @param aMessage the message to log
-   */
-  var log = function(aMessage) {
-      var console = Components.classes['@mozilla.org/consoleservice;1'].
-                getService(Components.interfaces.nsIConsoleService);
-      console.logStringMessage('TrustAuth: ' + aMessage);
-  };
-
-  /*
    * Prompts the user to enter a new master password.
    *
    * @param message optional message to use
@@ -958,7 +926,7 @@ window.TrustAuth = function() {
     on_load(e);
   }, false);
 
-}();
+})();
 
 }
 

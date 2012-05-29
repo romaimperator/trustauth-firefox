@@ -25,10 +25,22 @@
  */
 var EXPORTED_SYMBOLS = [ 'utils' ];
 
+/*
+ * The following is the list of functions that must be implemented for these utilities to work. See firefox_utils.jsm for an example of
+ * how to implement them.
+ *
+ * log(message) - logs a string to the console
+ * get_doc() - returns the document of the currently selected tab
+ * get_domain() - returns the domain for the currently selected tab
+ */
+
 Components.utils.import("chrome://trustauth/content/forge/forge.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 
 var utils = {
+  log: function(message) {},
+  get_doc: function() {},
+  get_domain: function() {},
 
   /**
    * Adds a listener to all submit buttons that are children of parent.
@@ -57,6 +69,16 @@ var utils = {
    */
   calculate_encryption_key: function(password, salt) {
     return this.sha256(password + salt);
+  },
+
+  /*
+   * Decodes an string from bytes
+   *
+   * @param bytes the bytes to decode
+   * @return the decoded string
+   */
+  decode_bytes: function(bytes) {
+    return this.decode_hex(forge.util.bytesToHex(bytes));
   },
 
   /*
@@ -92,6 +114,20 @@ var utils = {
     }
   },
 
+  /*
+   * A debugging function used to try and dump an object to the log
+   *
+   * @param obj the object to dump
+   */
+  dump: function(obj) {
+    var out = '';
+    for (var i in obj) {
+        out += i + ": " + obj[i] + "\n";
+    }
+
+    this.log(out);
+  },
+
   /**
    * Enables all of the submit buttons that are a child of the given element.
    *
@@ -110,6 +146,16 @@ var utils = {
   },
 
   /*
+   * Encodes a unicode string as hex
+   *
+   * @param string the string to convert
+   * @return the hex encoded string
+   */
+  encode_bytes: function(string) {
+    return forge.util.hexToBytes(this.encode_hex(string));
+  },
+
+  /*
    * Encodes an ASCII string as hex
    *
    * @param string the string to convert
@@ -125,7 +171,7 @@ var utils = {
       if (tmp.length === 1) {
         tmp = '0' + tmp;
       } else if (tmp.length !== 2) {
-        //log('encode of: ' + string + ' produced character length of: ' + tmp.length + ' at character: ' + i);
+        this.log('encode of: ' + string + ' produced character length of: ' + tmp.length + ' at character: ' + i);
       }
       retval += tmp;
     }
@@ -219,6 +265,18 @@ var utils = {
       str = pad_char + str;
     }
     return str;
+  },
+
+  /**
+   * Converts an absolute or relative URL to an absolute URL.
+   *
+   * @param {string} url the URL to convert
+   * @return {string} the absolute URL
+   */
+  relative_to_absolute: function(url) {
+    var a = this.get_doc().createElement('a');
+    a.href = url;
+    return a.href;
   },
 
   /**
