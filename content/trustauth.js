@@ -29,6 +29,7 @@ if (typeof(window) !== "undefined") {
 
 Components.utils.import("chrome://trustauth/content/forge/forge.jsm");
 Components.utils.import("chrome://trustauth/content/utils.jsm");
+Components.utils.import("chrome://trustauth/content/crypto.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 
 /* These are the firefox specific utility functions that must be implemented. */
@@ -149,70 +150,20 @@ utils.get_domain = function() {
     if (is_unlocked()) {
       log("generating new key pair...");
       generate_key_pair( function(keys) {
-        var encryption_key = get_encryption_key();
-        var encrypted_keys = {
-          'publicKey': encrypt_aes(encryption_key, forge.pki.publicKeyToPem(keys['publicKey'])),
-          'privateKey': encrypt_aes(encryption_key, forge.pki.privateKeyToPem(keys['privateKey'])),
-        };
+        var encrypted_keys = ta_crypto.encrypt_keys({
+            'public_key': forge.pki.publicKeyToPem(keys['publicKey']),
+            'private_key': forge.pki.privateKeyToPem(keys['privateKey'])},
+          get_encryption_key());
         store_cache_pair(encrypted_keys['publicKey'], encrypted_keys['privateKey']);
 
         if (after_creation) { after_creation(); }
+        log("finished generating key pair");
       });
     } else {
       if (prompt_password()) {
         create_cache_key();
       }
     }
-  };
-
-  /*
-   * Decrypts the hex data with the key.
-   *
-   * @param key the decryption key as forge key object
-   * @param the encrypted data in hex
-   * @return the plaintext data
-   */
-  var decrypt = function(key, data) {
-    return key.decrypt(forge.util.hexToBytes(data));
-  };
-
-  /*
-   * Decrypts the hex data using the key and AES.
-   *
-   * @param key the decryption key as a hex string
-   * @param the data in hex
-   * @return the decrypted data
-   */
-  var decrypt_aes = function(key, data) {
-    var cipher = forge.aes.startDecrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(TRUSTAUTH_ENC_KEY_SALT), null);
-    cipher.update(forge.util.createBuffer(forge.util.hexToBytes(data)));
-    cipher.finish();
-    return utils.decode_hex(cipher.output.toHex());
-  };
-
-  /*
-   * Encrypts the hex data with the key.
-   *
-   * @param key the encryption key as forge key object
-   * @param the data in hex
-   * @return the encrypted data
-   */
-  var encrypt = function(key, data) {
-    return forge.util.bytesToHex(key.encrypt(forge.util.hexToBytes(data)));
-  };
-
-  /*
-   * Encrypts the hex data using the key and AES.
-   *
-   * @param key the encryption key as a hex string
-   * @param the data in hex
-   * @return the encrypted data
-   */
-  var encrypt_aes = function(key, data) {
-    var cipher = forge.aes.startEncrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(TRUSTAUTH_ENC_KEY_SALT), null);
-    cipher.update(forge.util.createBuffer(encode_bytes(data)));
-    cipher.finish();
-    return cipher.output.toHex();
   };
 
   /**
@@ -239,7 +190,7 @@ utils.get_domain = function() {
       if (data['hash'] !== data['calculated_hash']) { log('There was an error verifying the integrity of the challenge message.'); return; }
       if (domain !== data['domain']) { log('Domain did not match.'); return; }
 
-      var keys = fetch_key_pair(domain);
+      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(domain), get_encryption_key());
       var private_key = forge.pki.privateKeyFromPem(keys['private_key']);
 
       utils.get_doc().getElementById(TRUSTAUTH_RESPONSE_ID).value = pack_response({ 'response': data['challenge'], 'hash': data['hash'], 'domain': domain }, private_key);
@@ -300,7 +251,7 @@ utils.get_domain = function() {
    */
   var insert_key = function() {
     if (is_unlocked()) {
-      var keys = fetch_key_pair(get_domain());
+      var keys = ta_crypto.decrypt_keys(fetch_key_pair(utils.get_domain()), get_encryption_key());
       utils.get_doc().getElementById(TRUSTAUTH_KEY_ID).value = keys['public_key'];
     }
   };
@@ -359,7 +310,7 @@ utils.get_domain = function() {
       b.putBytes(encoded_response);
       b.putBytes(encoded_domain);
       b.putBytes(forge.util.hexToBytes(data['hash']));
-      var encrypted_hash = encrypt(key, utils.sha256(b.toHex()));
+      var encrypted_hash = ta_crypto.encrypt(key, utils.sha256(b.toHex()));
       b.putInt16(encrypted_hash.length);
       b.putBytes(forge.util.hexToBytes(encrypted_hash));
       return b.toHex();
