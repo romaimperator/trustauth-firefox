@@ -3,20 +3,6 @@
 <!DOCTYPE overlay SYSTEM "chrome://trustauth/locale/trustauth.dtd">
 <overlay id="trustauth-overlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-  <script type="application/javascript" src="chrome://trustauth/content/jquery-1.7.1.min.js"/>
   <script type="application/javascript" src="chrome://browser/content/utilityOverlay.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/jsbn.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/aes.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/asn1.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/md5.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/sha1.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/sha256.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/oids.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/util.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/prng.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/random.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/rsa.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/pki.js"/>
   <script type="application/javascript" src="chrome://trustauth/content/trustauth.js"/>
-
 </overlay>
