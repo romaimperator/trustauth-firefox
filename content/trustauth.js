@@ -469,7 +469,7 @@ utils.get_domain = function() {
 
     prompts.promptPassword(null, message, null, password, null, checked);
     if (password.value !== null) {
-      encryption_key = utils.calculate_encryption_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
+      encryption_key = ta_crypto.calculate_encryption_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
       db.store_encryption_key(encryption_key);
     }
   };
@@ -490,7 +490,7 @@ utils.get_domain = function() {
       while ( ! verify_password(password.value)) {
         if ( ! prompts.promptPassword(null, "Incorrect master password", null, password, null, checked)) return false;
       }
-      encryption_key = utils.calculate_encryption_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
+      encryption_key = ta_crypto.calculate_encryption_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
       after_unlock();
       return true;
     }
@@ -515,7 +515,7 @@ utils.get_domain = function() {
   var verify_password = function(password) {
     var hash = db.get_stored_hash();
 
-    return (hash !== null && hash === get_storage_hash(utils.calculate_encryption_key(password, TRUSTAUTH_ENC_KEY_SALT)));
+    return (hash !== null && hash === get_storage_hash(ta_crypto.calculate_encryption_key(password, TRUSTAUTH_ENC_KEY_SALT)));
   };
 
   // Initialize the TrustAuth object

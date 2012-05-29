@@ -61,17 +61,6 @@ var utils = {
   },
 
   /*
-   * Calculates the encryption key for the key pairs
-   *
-   * @param password the password to use
-   * @param salt the salt to use
-   * @return the encryption key
-   */
-  calculate_encryption_key: function(password, salt) {
-    return this.sha256(password + salt);
-  },
-
-  /*
    * Decodes an string from bytes
    *
    * @param bytes the bytes to decode

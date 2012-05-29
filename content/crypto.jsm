@@ -32,6 +32,17 @@ Components.utils.import("chrome://trustauth/content/constants.jsm");
 var ta_crypto = {
 
   /*
+   * Calculates the encryption key for the key pairs
+   *
+   * @param password the password to use
+   * @param salt the salt to use
+   * @return the encryption key
+   */
+  calculate_encryption_key: function(password, salt) {
+    return utils.sha256(password + salt);
+  },
+
+  /*
    * Decrypts the hex data with the key.
    *
    * @param key the decryption key as forge key object
