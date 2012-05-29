@@ -31,6 +31,7 @@ Components.utils.import("chrome://trustauth/content/forge/forge.jsm");
 Components.utils.import("chrome://trustauth/content/utils.jsm");
 Components.utils.import("chrome://trustauth/content/crypto.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
+Components.utils.import("chrome://trustauth/content/db.jsm");
 
 /* These are the firefox specific utility functions that must be implemented. */
 
@@ -100,13 +101,15 @@ utils.get_domain = function() {
 
       utils.disable_child_submit(register_element.parentNode);
 
-      if (domain_exist(domain)) {
       var domain = utils.get_domain();
+      if (db.domain_exist(domain)) {
         insert_key();
         utils.enable_child_submit(register_element.parentNode);
       } else {
-        assign_pair_and_replace(domain);
-        insert_key();
+        assign_pair_and_replace(domain, function() {
+          insert_key();
+          utils.enable_child_submit(register_element.parentNode);
+        });
       }
     }
   };
@@ -123,20 +126,22 @@ utils.get_domain = function() {
    * Associates a cache key with the domain and generates a replacement key.
    *
    * @param {string} domain the domain to assign a key to
+   * @param {function} after_assign an optional function to execute after a key pair is assigned to domain
    * @return {bool} true on success; false otherwise
    */
-  var assign_pair_and_replace = function(domain) {
-    var site_id = fetch_or_store_domain(domain);
-    var key_id = fetch_cache_id();
+  var assign_pair_and_replace = function(domain, after_assign) {
+    var site_id = db.fetch_or_store_domain(domain);
+    var key_id = db.fetch_cache_id();
     if (key_id === null) {
       // No cached key exists so generate one
       create_cache_pair(function() {
-        key_id = fetch_cache_id();
-        associate_key(key_id, site_id);
+        key_id = db.fetch_cache_id();
+        db.associate_key(key_id, site_id);
         create_cache_pair();
+        if (after_assign) { after_assign(); }
       });
     } else {
-      associate_key(fetch_cache_id(), site_id);
+      db.associate_key(db.fetch_cache_id(), site_id);
       create_cache_pair();
     }
   };
@@ -154,7 +159,7 @@ utils.get_domain = function() {
             'public_key': forge.pki.publicKeyToPem(keys['publicKey']),
             'private_key': forge.pki.privateKeyToPem(keys['privateKey'])},
           get_encryption_key());
-        store_cache_pair(encrypted_keys['publicKey'], encrypted_keys['privateKey']);
+        db.store_cache_pair(encrypted_keys['public_key'], encrypted_keys['private_key']);
 
         if (after_creation) { after_creation(); }
         log("finished generating key pair");
@@ -177,7 +182,7 @@ utils.get_domain = function() {
     if (is_unlocked()) {
       var domain = utils.get_form_hostname(get_login_form());
 
-      if ( ! domain_exist(domain)) { log("No key for this domain."); return; }
+      if ( ! db.domain_exist(domain)) { log("No key for this domain."); return; }
 
       var challenge_element = utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID);
 
@@ -251,7 +256,7 @@ utils.get_domain = function() {
    */
   var insert_key = function() {
     if (is_unlocked()) {
-      var keys = ta_crypto.decrypt_keys(fetch_key_pair(utils.get_domain()), get_encryption_key());
+      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(utils.get_domain()), get_encryption_key());
       utils.get_doc().getElementById(TRUSTAUTH_KEY_ID).value = keys['public_key'];
     }
   };
@@ -262,7 +267,7 @@ utils.get_domain = function() {
    * @return boolean
    */
   var is_password_set = function() {
-    return get_stored_hash() !== null;
+    return db.get_stored_hash() !== null;
   };
 
   /*
@@ -423,173 +428,6 @@ utils.get_domain = function() {
 /* Browser Specific Functions */
 /******************************/
 
-  /**
-   * Associates the given key id with the given domain id. This function fails if the key is
-   * already assigned to another domain.
-   *
-   * @param {integer} key_id the key id to associate this domain to
-   * @param {integer} site_id the id of the domain to associate this key to
-   * @return {bool} true if successful; false otherwise
-   */
-  var associate_key = function(key_id, site_id) {
-    var db = db_connect();
-
-    var result = false;
-    // If this key is available then assign it to this domain
-    if ( ! is_key_assigned(key_id)) {
-      try {
-        var statement = db.createStatement("INSERT INTO keys_sites (key_id, site_id) VALUES(:key_id, :site_id)");
-        statement.params.key_id  = key_id;
-        statement.params.site_id = site_id;
-        statement.execute();
-        log('key associated successfully');
-        result = true;
-      } catch (e) {
-        dump(e);
-        log(db.lastErrorString);
-      } finally {
-        statement.finalize();
-        db.close();
-      }
-    }
-    return result;
-  };
-
-  /*
-   * Connects to the database.
-   */
-  var db_connect = function() {
-    Components.utils.import("resource://gre/modules/Services.jsm");
-    Components.utils.import("resource://gre/modules/FileUtils.jsm");
-
-    // Establish a connection to the database
-    var file = FileUtils.getFile("ProfD", ["trustauth", "trustauth.sqlite"]);
-    var file_exists = file.exists();
-    return Services.storage.openDatabase(file);
-  };
-
-  /*
-   * Checks to see if the given domain has a key in the database
-   *
-   * @param domain the domain to look for
-   * @return true if the domain is in the database false otherwise
-   */
-  var domain_exist = function(domain) {
-    var db = db_connect();
-
-    var domain_exists = false;
-    try {
-      // Create the statement to fetch the most recently created key for this domain
-      var statement = db.createStatement("SELECT domain FROM keys, sites, keys_sites WHERE keys.id=keys_sites.key_id AND sites.id=keys_sites.site_id AND sites.domain=:domain ORDER BY keys.created DESC");
-
-      // Bind the parameter
-      statement.params.domain = domain;
-
-      // Execute the query synchronously
-      if (statement.executeStep()) {
-        domain_exists = domain === statement.row.domain;
-      }
-    } catch (ex) {
-      dump(ex);
-      log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
-    return domain_exists;
-  };
-
-  /**
-   * Fetches the first cached key id from the database.
-   */
-  var fetch_cache_id = function() {
-    var db = db_connect();
-
-    var key_id = null;
-    try {
-      var statement = db.createStatement("SELECT id FROM keys WHERE id not in (SELECT key_id FROM keys_sites) LIMIT 1");
-      if (statement.executeStep()) {
-        key_id = statement.row.id;
-      }
-    } catch (e) {
-      dump(e);
-      log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
-    return key_id;
-  };
-
-  /*
-   * Fetches the most recently created key pair for the given domain, decrypts them
-   * using the encryption key and returns the pair as a hash.
-   *
-   * @param domain the domain to fetch keys for
-   * @return hash of the public and private key pair or null if the domain doesn't have a key pair
-   */
-  var fetch_key_pair = function(domain) {
-    var db = db_connect();
-
-    var key_pair = null;
-    try {
-      var statement = db.createStatement("SELECT k.id, public_key, private_key FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
-
-      // Bind the parameter
-      statement.params.domain = domain;
-
-      // Execute the query synchronously
-      if (statement.executeStep()) {
-        var encryption_key = get_encryption_key();
-        key_pair = {
-          'id': statement.row.id,
-          'public_key': decrypt_aes(encryption_key, statement.row.public_key),
-          'private_key': decrypt_aes(encryption_key, statement.row.private_key),
-        };
-      }
-    } catch (ex) {
-      dump(ex);
-      log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
-    return key_pair;
-  };
-
-  /**
-   * Adds the domain name to the database and returns the site_id of the domain.
-   *
-   * @param {string} domain the domain name to add
-   * @return {integer} the id of the either the new domain or the previously inserted domain
-   */
-  var fetch_or_store_domain = function(domain) {
-    var db = db_connect();
-
-    // First try to insert the domain if it's not already there.
-    var site_id = get_site_id(domain);
-    if (site_id === null) {
-      try {
-        var statement = db.createStatement("INSERT INTO sites (domain) VALUES(:domain)");
-        statement.params.domain = domain;
-        statement.execute();
-
-        site_id = db.lastInsertRowID;
-      } catch (e) {
-        log(db.lastErrorString);
-        dump(e);
-      } finally {
-        statement.finalize();
-        db.close();
-      }
-    }
-
-    return site_id;
-  };
-
   var get_b_pref = function(preference) {
       return prefs.getBoolPref(preference);
   };
@@ -600,73 +438,6 @@ utils.get_domain = function() {
 
   var get_i_pref = function(preference) {
       return prefs.getIntPref(preference);
-  };
-
-  /**
-   * Retrieves the hash stored in the database.
-   *
-   * @return {string} the hash if there is one, null otherwise
-   */
-  var get_stored_hash = function() {
-    var db = db_connect();
-
-    var hash = null;
-    try {
-      var statement = db.createStatement("SELECT hash FROM password_verify LIMIT 1");
-
-      if (statement.executeStep()) {
-        hash = statement.row.hash;
-      }
-    } catch(ex) {
-      dump(ex);
-      log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
-    return hash;
-  };
-
-  /*
-   * Returns the site_id for the domain or null if the domain wasn't found.
-   *
-   * @param domain the domain to get the site_id for
-   * @return the site_id
-   */
-  var get_site_id = function(domain) {
-    var db = db_connect();
-
-    var row_id = null;
-    try {
-      var statement = db.createStatement("SELECT id FROM sites WHERE domain=:domain");
-      statement.params.domain = domain;
-      if (statement.executeStep()) {
-        row_id = statement.row.id;
-      }
-    } catch (ex) {
-      dump(ex);
-      log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-    }
-
-    db.close();
-    return row_id;
-  };
-
-  /*
-   * Initializes the place to store the public and private key pairs.
-   */
-  var init_db = function() {
-    var db = db_connect();
-
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS password_verify (hash TEXT)");
-
-    db.close();
   };
 
   /*
@@ -712,37 +483,6 @@ utils.get_domain = function() {
     }
   };
 
-  /**
-   * Checks to see if the key_id is already assigned to a domain.
-   *
-   * @param {integer} key_id the key id to check
-   * @return {bool} true if the key is assigned already; false otherwise
-   */
-  var is_key_assigned = function(key_id) {
-    var db = db_connect();
-
-    var result = false;
-    try {
-      var statement = db.createStatement("SELECT * FROM keys_sites WHERE key_id=:key_id");
-      statement.params.key_id = key_id;
-
-      if (statement.executeStep()) {
-        if (statement.row.key_id) {
-          result = true;
-        }
-      }
-    } catch (e) {
-      dump(e);
-      log(db.lastErrorString);
-      result = true;
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
-    return result;
-  };
-
   /*
    * Prompts the user to enter a new master password.
    *
@@ -758,7 +498,7 @@ utils.get_domain = function() {
     prompts.promptPassword(null, message, null, password, null, checked);
     if (password.value !== null) {
       encryption_key = utils.calculate_encryption_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
-      store_encryption_key(encryption_key);
+      db.store_encryption_key(encryption_key);
     }
   };
 
@@ -807,66 +547,13 @@ utils.get_domain = function() {
   };
 
   /**
-   * Stores a cache key in the database for future use.
-   *
-   * @param {forge key objects} keys the key pair to store as the next cache key.
-   */
-  var store_cache_pair = function(public_key, private_key) {
-    var db = db_connect();
-
-    var result = false;
-    try {
-      var statement = db.createStatement("INSERT INTO keys (public_key, private_key, created) VALUES(:public_key, :private_key, :created)");
-      statement.params.public_key  = public_key;
-      statement.params.private_key = private_key;
-      statement.params.created     = utils.get_time();
-      if (statement.executeStep()) result = true;
-    } catch (e) {
-      dump(e);
-      log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
-    return result;
-  };
-
-  /*
-   * This function stores the key in the browser's password manager
-   *
-   * @param key the key to store
-   */
-  var store_encryption_key = function(key) {
-    var success = false;
-    if (! is_password_set()) {
-      var db = db_connect();
-
-      try {
-        var statement = db.createStatement("INSERT OR ABORT INTO password_verify (hash) VALUES(:hash)");
-        statement.params.hash = get_storage_hash(key);
-
-        success = statement.executeStep();
-      } catch (ex) {
-        dump(ex);
-        log(db.lastErrorString);
-      } finally {
-        statement.finalize();
-        db.close();
-      }
-
-    }
-    return success;
-  };
-
-  /**
    * Verifies that the password given is the correct password.
    *
    * @param {string} password the password to check
    * @return {bool} true if it is, false otherwise
    */
   var verify_password = function(password) {
-    var hash = get_stored_hash();
+    var hash = db.get_stored_hash();
 
     return (hash !== null && hash === get_storage_hash(utils.calculate_encryption_key(password, TRUSTAUTH_ENC_KEY_SALT)));
   };
