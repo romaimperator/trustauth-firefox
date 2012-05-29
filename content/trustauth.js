@@ -155,10 +155,7 @@ utils.get_domain = function() {
     if (is_unlocked()) {
       log("generating new key pair...");
       generate_key_pair( function(keys) {
-        var encrypted_keys = ta_crypto.encrypt_keys({
-            'public_key': forge.pki.publicKeyToPem(keys['publicKey']),
-            'private_key': forge.pki.privateKeyToPem(keys['privateKey'])},
-          get_encryption_key());
+        var encrypted_keys = ta_crypto.encrypt_keys(keys, get_encryption_key());
         db.store_cache_pair(encrypted_keys['public_key'], encrypted_keys['private_key']);
 
         if (after_creation) { after_creation(); }
@@ -216,12 +213,12 @@ utils.get_domain = function() {
 
     var worker = new Worker('chrome://trustauth/content/generate_key_pair.js');
     worker.onerror   = function(event) {
-      log('error: ' + event.message);
+      log('generate error: ' + event.message);
     };
     worker.onmessage = function(event) {
       handle_keys({
-        'publicKey':  forge.pki.publicKeyFromPem(event.data['publicKey']),
-        'privateKey': forge.pki.privateKeyFromPem(event.data['privateKey']),
+        'public_key':  event.data['publicKey'],
+        'private_key': event.data['privateKey'],
       });
     };
     worker.postMessage({'key_length':key_length, 'exponent':exponent});
