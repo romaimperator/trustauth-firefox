@@ -414,18 +414,6 @@ utils.get_domain = function() {
   };
 
 
-  /**
-   * Converts an absolute or relative URL to an absolute URL.
-   *
-   * @param {string} url the URL to convert
-   * @return {string} the absolute URL
-   */
-  utils.relative_to_absolute = function(url) {
-    var a = get_doc().createElement('a');
-    a.href = url;
-    return a.href;
-  };
-
 
 /******************************/
 /* Browser Specific Functions */
