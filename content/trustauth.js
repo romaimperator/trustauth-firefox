@@ -27,6 +27,7 @@
 
 if (typeof(window) !== "undefined") {
 
+Components.utils.import("chrome://trustauth/content/forge/forge.jsm");
 Components.utils.import("chrome://trustauth/content/utils.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 

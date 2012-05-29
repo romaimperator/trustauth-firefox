@@ -25,6 +25,7 @@
  */
 var EXPORTED_SYMBOLS = [ 'utils' ];
 
+Components.utils.import("chrome://trustauth/content/forge/forge.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 
 var utils = {

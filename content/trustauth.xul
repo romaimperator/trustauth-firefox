@@ -4,18 +4,5 @@
 <overlay id="trustauth-overlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
   <script type="application/javascript" src="chrome://browser/content/utilityOverlay.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/jsbn.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/aes.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/asn1.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/md5.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/sha1.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/sha256.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/oids.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/util.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/prng.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/random.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/rsa.js"/>
-  <script type="application/javascript" src="chrome://trustauth/content/forge/pki.js"/>
   <script type="application/javascript" src="chrome://trustauth/content/trustauth.js"/>
-
 </overlay>
