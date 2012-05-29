@@ -279,6 +279,43 @@ utils.get_domain = function() {
     return get_encryption_key() !== null;
   };
 
+  /*
+   * Initializes the addon.
+   */
+  var on_load = function() {
+    // initialization code
+    initialized = true;
+
+    init_pref();
+    db.init();
+    init_listener();
+    set_button_image(TRUSTAUTH_BUTTON);
+
+    if (get_b_pref('first_run')) {
+      set_b_pref('first_run', false);
+      install_button("nav-bar", "trustauth-main-button");
+      // The "addon-bar" is available since Firefox 4
+      install_button("addon-bar", "trustauth-main-button");
+    }
+  };
+
+  /*
+   * Runs whenever a page is finished loading.
+   */
+  var on_page_load = function(event) {
+    if (event.originalTarget instanceof HTMLDocument) {
+      var win = event.originalTarget.defaultView;
+      if (win.frameElement) {
+        return;
+      } else {
+
+        dump(unpack_data(utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
+        add_key_listener();
+        encrypt_login();
+      }
+    }
+  };
+
   /**
    * This function packs the data into a hex string of data in the format for TrustAuth. The type
    * specifies which type of message this is. The data is a hash of data required for the format.
@@ -371,43 +408,6 @@ utils.get_domain = function() {
   var pack_response = function(data, key) {
     data.time = utils.get_time();
     return pack_data(MESSAGE_TYPE['response'], data, key);
-  };
-
-  /*
-   * Initializes the addon.
-   */
-  var on_load = function() {
-    // initialization code
-    initialized = true;
-
-    init_pref();
-    init_db();
-    init_listener();
-    set_button_image(TRUSTAUTH_BUTTON);
-
-    if (get_b_pref('first_run')) {
-      set_b_pref('first_run', false);
-      install_button("nav-bar", "trustauth-main-button");
-      // The "addon-bar" is available since Firefox 4
-      install_button("addon-bar", "trustauth-main-button");
-    }
-  };
-
-  /*
-   * Runs whenever a page is finished loading.
-   */
-  var on_page_load = function(event) {
-    if (event.originalTarget instanceof HTMLDocument) {
-      var win = event.originalTarget.defaultView;
-      if (win.frameElement) {
-        return;
-      } else {
-
-        dump(unpack_data(get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
-        add_key_listener();
-        encrypt_login();
-      }
-    }
   };
 
 
