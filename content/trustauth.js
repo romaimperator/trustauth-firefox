@@ -32,6 +32,7 @@ Components.utils.import("chrome://trustauth/content/utils.jsm");
 Components.utils.import("chrome://trustauth/content/crypto.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 Components.utils.import("chrome://trustauth/content/db.jsm");
+Components.utils.import("chrome://trustauth/content/prefs.jsm");
 
 /* These are the firefox specific utility functions that must be implemented. */
 
@@ -65,7 +66,6 @@ utils.get_domain = function() {
 
   var initialized = false;
   var disabled    = false;
-  var prefs       = null;
 
   var encryption_key = null;
 
@@ -211,8 +211,8 @@ utils.get_domain = function() {
    */
   var generate_key_pair = function(handle_keys) {
     // Retreive the key length and exponent values
-    var key_length = get_i_pref("key_length");
-    var exponent   = get_i_pref("exponent");
+    var key_length = prefs.get_i_pref("key_length");
+    var exponent   = prefs.get_i_pref("exponent");
 
     var worker = new Worker('chrome://trustauth/content/generate_key_pair.js');
     worker.onerror   = function(event) {
@@ -286,13 +286,12 @@ utils.get_domain = function() {
     // initialization code
     initialized = true;
 
-    init_pref();
     db.init();
     init_listener();
     set_button_image(TRUSTAUTH_BUTTON);
 
-    if (get_b_pref('first_run')) {
-      set_b_pref('first_run', false);
+    if (prefs.get_b_pref('first_run')) {
+      prefs.set_b_pref('first_run', false);
       install_button("nav-bar", "trustauth-main-button");
       // The "addon-bar" is available since Firefox 4
       install_button("addon-bar", "trustauth-main-button");
@@ -419,30 +418,12 @@ utils.get_domain = function() {
 /* Browser Specific Functions */
 /******************************/
 
-  var get_b_pref = function(preference) {
-      return prefs.getBoolPref(preference);
-  };
-
-  var get_c_pref = function(preference) {
-      return prefs.getCharPref(preference);
-  };
-
-  var get_i_pref = function(preference) {
-      return prefs.getIntPref(preference);
-  };
-
   /*
    * Initializes the javascript listeners for the buttons on the preference page.
    */
   var init_listener = function() {
     gBrowser.addEventListener("load", on_page_load, true);
     document.getElementById('trustauth-menu-unlock').addEventListener("click", prompt_password, false);
-  };
-
-  // Fetch the preferences for the addon
-  var init_pref = function() {
-    prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                    .getService(Components.interfaces.nsIPrefService).getBranch("extensions.trustauth.");
   };
 
   /**
@@ -516,10 +497,6 @@ utils.get_domain = function() {
     return false;
   };
 
-  var set_b_pref = function(preference, value) {
-      prefs.setBoolPref(preference, value);
-  };
-
   /*
    * This function sets the button image on the toolbar.
    *
@@ -527,14 +504,6 @@ utils.get_domain = function() {
    */
   var set_button_image = function(image) {
     document.getElementById('trustauth-main-button').setAttribute('image', image);
-  };
-
-  var set_c_pref = function(preference, value) {
-    prefs.setCharPref(preference, value);
-  };
-
-  var set_i_pref = function(preference, value) {
-    prefs.setIntPref(preference, value);
   };
 
   /**
