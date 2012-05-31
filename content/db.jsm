@@ -94,10 +94,11 @@ var db = {
    * @return {bool} true if update was successful, false if there was an error
    */
   set_version: function(version) {
+    var db = this;
     return this._execute("UPDATE migrations SET version=:version", function(statement) {
       statement.params.version = version;
       statement.execute();
-      this.version = version;
+      db.version = version;
     });
   },
 
@@ -118,7 +119,7 @@ var db = {
    *                       EXAMPLE: { name: "TEXT UNIQUE NOT NULL" }
    * @return {hash} hash containing the up and down functions needed for this migration
    */
-  create_table: function(name, columns) {
+  _create_table_migration: function(name, columns) {
     return {
       up: function(db) { return db._create_table(name, columns); },
       down: function(db) { return db._drop_table(name); },
@@ -132,10 +133,10 @@ var db = {
    * @param {hash} columns hash of columns contained in the table to allow recreation of the table. See create_table() for example
    * @return {hash} hash containing the up and down functions needed for this migration
    */
-  drop_table: function(name, columns) {
+  _drop_table_migration: function(name, columns) {
     return {
-      up: function(db) { return db._drop_table(name); }
-      down: function(db) { return db._create_table(name, columns); }
+      up: function(db) { return db._drop_table(name); },
+      down: function(db) { return db._create_table(name, columns); },
     };
   },
 
@@ -161,11 +162,7 @@ var db = {
    * @return {bool} true on success, false if there was an error
    */
   _create_table: function(name, columns) {
-    return this._execute("CREATE TABLE :name (:columns)", function(statement) {
-      statement.params.name = name;
-      statement.params.columns = this._serialize(columns);
-      statement.execute();
-    });
+    return this._execute("CREATE TABLE " + name + " (" + this._serialize(columns) + ")");
   },
 
 
@@ -176,10 +173,7 @@ var db = {
    * @return {bool} true on success, false if there was an error
    */
   _drop_table: function(name) {
-    return this._execute("DROP TABLE :name", function(statement) {
-      statement.params.name = name;
-      statement.execute();
-    });
+    return this._execute("DROP TABLE " + name);
   },
 
   /*
