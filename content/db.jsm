@@ -91,15 +91,21 @@ var db = {
    * Sets the version number of the database.
    *
    * @param {int} version the new version number of the database
-   * @return {bool} true if update was successful, false if there was an error
+   * @return {int} version if update was successful, null if there was an error
    */
   set_version: function(version) {
     var db = this;
-    return this._execute("UPDATE migrations SET version=:version", function(statement) {
+    var sql = '';
+    if (this._get_version() !== null) {
+      sql = "UPDATE migrations SET version=:version";
+    } else {
+      sql = "INSERT INTO migrations (version) VALUES (:version)";
+    }
+    return this._execute(sql, function(statement) {
       statement.params.version = version;
       statement.execute();
       db.version = version;
-    });
+    }) ? this.version : null;
   },
 
   /**
