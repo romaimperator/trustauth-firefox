@@ -112,9 +112,13 @@ function Manager(db) {
      * @return {bool} true if the migration was added, false if there was an error
      */
     add_migration: function(name, functions) {
-      if ( ! utils.isset(functions) || ! utils.isset(functions['up']) || ! utils.isset(functions['down'])) { return false; }
+      if ( ! this._isset(functions) || ! this._isset(functions['up']) || ! this._isset(functions['down'])) { return false; }
       this._migrations.push(Migration(++(this._latest_version), name, functions['up'], functions['down']));
       return true;
+    },
+
+    _isset: function(variable) {
+      return (variable !== null && typeof variable !== "undefined");
     },
 
     /**
@@ -160,9 +164,8 @@ function Manager(db) {
       var result = true;
       for(var i = 0; i < count; i++) {
         if(this._current_version() < this._latest_version) {
-          this._up(this._migrations[this._next_version()]);
+          result = result && this._up(this._migrations[this._next_version()]);
         }
-      var next = this._migrations[this._current_version()];
       }
       return result;
     },
@@ -177,7 +180,7 @@ function Manager(db) {
       var result = true;
       for(var i = 0; i < count; i++) {
         if(this._current_version() > 0) {
-          this._down(this._migrations[this._current_version()]);
+          result = result && this._down(this._migrations[this._current_version()]);
         }
       }
       return result;
