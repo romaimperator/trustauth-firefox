@@ -83,8 +83,7 @@ var db = {
    * @return {int} the current migration version of the database
    */
   get_version: function() {
-    //return this.version;
-    return this._get_version();
+    return this.version;
   },
 
   /**
@@ -114,7 +113,10 @@ var db = {
    * @return {bool} true on success, false if there was an error
    */
   reset: function() {
-    return this._execute("DROP TABLE migrations");
+    return this._drop_table("keys") &&
+           this._drop_table("sites") &&
+           this._drop_table("keys_sites") &&
+           this._drop_table("password_verify");
   },
 
   /**
@@ -407,18 +409,26 @@ var db = {
    * Initializes the place to store the public and private key pairs.
    */
   init: function() {
-    this.version = this._get_version() || this.set_version(BASE_VERSION);
+    this._init_migration_table();
+    var db_version = this._get_version();
+    this.version = (db_version) ? db_version : this.set_version(BASE_VERSION);
     this.manager = Manager(this);
-    var db = this.connect();
 
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS password_verify (hash TEXT)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS migrations (version INTEGER)");
-    db.executeSimpleSQL("INSERT INTO migrations (version) VALUES (" + BASE_VERSION + ")");
+    this.manager.add_migration("Create keys table", this._create_table_migration("keys", { id: "INTEGER PRIMARY KEY", public_key: "TEXT", private_key: "TEXT", created: "TEXT" }));
+    this.manager.add_migration("Create sites table", this._create_table_migration("sites", { id: "INTEGER PRIMARY KEY", domain: "TEXT UNIQUE" }));
+    this.manager.add_migration("Create key_sites table", this._create_table_migration("key_sites", { key_id: "NUMERIC", site_id: "NUMERIC" }));
+    this.manager.add_migration("Create password_verify table", this._create_table_migration("password_verify", { hash: "TEXT" }));
+    this.manager.migrate();
+  },
 
-    db.close();
+  /**
+   * Creates the migrations table if it does not exist.
+   *
+   * @return {bool} true if the SQL query successfully executed, false if there was an error. NOTE: if the table
+   *                already exists it will still return true.
+   */
+  _init_migration_table: function() {
+    return this._execute("CREATE TABLE IF NOT EXISTS migrations (version NUMERIC)");
   },
 
   /**
