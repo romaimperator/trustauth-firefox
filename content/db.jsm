@@ -30,6 +30,32 @@ Components.utils.import("chrome://trustauth/content/constants.jsm");
 Components.utils.import("chrome://trustauth/content/crypto.jsm");
 
 var db = {
+  /**
+   * This function wraps some SQL execution in the try...catch...finally and returns a boolean
+   * result on success or failure.
+   *
+   * @param {string} sql string of SQL code to pass to createStatement
+   * @param {function(statement)} statement_handler a function that takes the statement as a parameter and does stuff with the statement
+   * @return {bool} true on success, false if there was an error
+   */
+  _execute: function(sql, statement_handler) {
+    var db = this.connect();
+
+    var result = false;
+    try {
+      var statement = db.createStatement(sql);
+      if (statement_handler) { statement_handler(statement); }
+      else { statement.execute(); }
+      result = true;
+    } catch (e) {
+      utils.dump(e);
+      utils.log(db.lastErrorString);
+    } finally {
+      statement.finalize();
+      db.close();
+    }
+    return result;
+  },
 
   /*
    * Connects to the database.
