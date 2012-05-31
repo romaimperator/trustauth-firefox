@@ -28,8 +28,12 @@ var EXPORTED_SYMBOLS = [ 'db' ];
 Components.utils.import("chrome://trustauth/content/utils.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 Components.utils.import("chrome://trustauth/content/crypto.jsm");
+Components.utils.import("chrome://trustauth/content/migrations.jsm");
 
 var db = {
+  version: null,//this._get_version() || this.set_version(BASE_VERSION),
+  manager: Manager(this),
+
   /**
    * This function wraps some SQL execution in the try...catch...finally and returns a boolean
    * result on success or failure.
@@ -56,6 +60,138 @@ var db = {
     }
     return result;
   },
+
+  _get_version: function() {
+    var version = null;
+    this._execute("SELECT version FROM migrations", function(statement) {
+      if (statement.executeStep()) {
+        version = statement.row.version;
+      }
+    });
+    return version;
+  },
+
+  // Functions for the migrations
+  get_version: function() {
+    //return this.version;
+    return this._get_version();
+  },
+
+  set_version: function(version) {
+    return this._execute("UPDATE migrations SET version=:version", function(statement) {
+      statement.params.version = version;
+      statement.execute();
+      this.version = version;
+    });
+  },
+
+  reset: function() {
+    return this._execute("DROP TABLE migrations");
+  },
+
+  _serialize: function(hash) {
+    var r = [];
+    for (key in hash) {
+      r.push(key + " " + hash[key]);
+    }
+    return r.join(',');
+  },
+
+  create_table: function(name, columns) {
+    return {
+      up: function(db) { db._create_table(name, columns); },
+      down: function(db) { db._drop_table(name); },
+    };
+  },
+
+  _create_table: function(name, columns) {
+    this._execute("CREATE TABLE :name (:columns)", function(statement) {
+      statement.params.name = name;
+      statement.params.columns = this._serialize(columns);
+      statement.execute();
+    });
+  },
+
+  _drop_table: function(name) {
+    this._execute("DROP TABLE :name", function(statement) {
+      statement.params.name = name;
+      statement.execute();
+    });
+  },
+
+  _add_column: function(table, column_name, column_def) {
+    this._execute("ALTER TABLE :table ADD COLUMN :column", function(statement) {
+      statement.params.table = table;
+      statement.params.column = column_name + " " + column_def;
+      statement.execute();
+    });
+  },
+
+  _drop_columns: function(table, column_names) {
+    var schema = [];
+    this._execute("PRAGMA table_info(:table)", function(statement) {
+      statement.params.table = table;
+      while (statement.executeStep()) {
+        schema.push({
+          cid: statement.row.cid,
+          name: statement.row.name,
+          type: statement.row.type,
+          notnull: statement.row.notnull,
+          dflt_value: statement.row.dflt_value,
+          pk: statement.row.pk,
+        });
+      }
+    });
+    schema = schema.filter(function(column) {
+      for (index in column_names) {
+        if (column_names[index] === column.name) { return false; }
+      }
+      return true;
+    });
+    this._create_table(table + "_new", schema.reduce(function(a, b) { a[b.name] = this._prepare_column_def(b); }, {}));
+    this._execute("INSERT INTO :new SELECT :columns FROM :old", function(statement) {
+      statement.params.new = table + "_new";
+      statement.params.old = table;
+      statement.params.columns = schema.map(function(column) { return column.name; }).join(",");
+      statement.execute();
+    });
+    this._drop_table(table);
+    this._execute("ALTER TABLE :new RENAME TO :old", function(statement) {
+      statement.params.new = table + "_new";
+      statement.params.old = table;
+      statement.execute();
+    });
+  },
+
+  _prepare_column_def: function(c) {
+    var result = c.type + " DEFAULT (" + c.dflt_value + ") ";
+    if (c.pk) { result += " PRIMARY KEY "; }
+    if (c.notnull) { result += " NOT NULL "; }
+    return result;
+  },
+
+  drop_table: function(name, columns) {
+    return {
+      up: function(db) { db._drop_table(name); }
+      down: function(db) { db._create_table(name, columns); }
+    };
+  },
+
+  add_column: function(table, columns) {
+    return {
+      up: function(db) {
+        for (key in columns) {
+          db._add_column(table, key, columns[key]);
+        }
+      },
+      down: function(db) {
+        for (key in columns) {
+          db._drop_column(table, key);
+        }
+      },
+    };
+  },
+
 
   /*
    * Connects to the database.
@@ -282,12 +418,25 @@ var db = {
    * Initializes the place to store the public and private key pairs.
    */
   init: function() {
+    this.manager.add_migration("Create keys table", {
+      up: function(db) {
+        return db._execute(function(con) {
+          con.executeSimpleSQL("CREATE TABLE keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
+        });
+      },
+      down: function(db) {
+        return db._execute(function(con) {
+          con.executeSimpleSQL("DROP TABLE keys");
+        });
+    }});
     var db = this.connect();
 
     db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
     db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
     db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
     db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS password_verify (hash TEXT)");
+    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS migrations (version INTEGER)");
+    db.executeSimpleSQL("INSERT INTO migrations (version) VALUES (" + BASE_VERSION + ")");
 
     db.close();
   },
