@@ -31,8 +31,8 @@ Components.utils.import("chrome://trustauth/content/crypto.jsm");
 Components.utils.import("chrome://trustauth/content/migrations.jsm");
 
 var db = {
-  version: null,//this._get_version() || this.set_version(BASE_VERSION),
-  manager: Manager(this),
+  version: null,
+  manager: null,
 
   /**
    * This function wraps some SQL execution in the try...catch...finally and returns a boolean
@@ -407,17 +407,8 @@ var db = {
    * Initializes the place to store the public and private key pairs.
    */
   init: function() {
-    this.manager.add_migration("Create keys table", {
-      up: function(db) {
-        return db._execute(function(con) {
-          con.executeSimpleSQL("CREATE TABLE keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
-        });
-      },
-      down: function(db) {
-        return db._execute(function(con) {
-          con.executeSimpleSQL("DROP TABLE keys");
-        });
-    }});
+    this.version = this._get_version() || this.set_version(BASE_VERSION);
+    this.manager = Manager(this);
     var db = this.connect();
 
     db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
