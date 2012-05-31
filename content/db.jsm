@@ -61,6 +61,11 @@ var db = {
     return result;
   },
 
+  /**
+   * Fetches the database version number from the database.
+   *
+   * @return {int} the current migration version of the database
+   */
   _get_version: function() {
     var version = null;
     this._execute("SELECT version FROM migrations", function(statement) {
@@ -71,12 +76,23 @@ var db = {
     return version;
   },
 
-  // Functions for the migrations
+  /**
+   * Returns the current database version number of the database. The version
+   * is cached to avoid querying each call.
+   *
+   * @return {int} the current migration version of the database
+   */
   get_version: function() {
     //return this.version;
     return this._get_version();
   },
 
+  /**
+   * Sets the version number of the database.
+   *
+   * @param {int} version the new version number of the database
+   * @return {bool} true if update was successful, false if there was an error
+   */
   set_version: function(version) {
     return this._execute("UPDATE migrations SET version=:version", function(statement) {
       statement.params.version = version;
@@ -85,10 +101,50 @@ var db = {
     });
   },
 
+  /**
+   * Resets the database to before any migrations were applied.
+   *
+   * @return {bool} true on success, false if there was an error
+   */
   reset: function() {
     return this._execute("DROP TABLE migrations");
   },
 
+  /**
+   * Creates the two migration functions for a create_table migration.
+   *
+   * @param {string} name the name of the new table
+   * @param {hash} columns hash of columns where the key is the column name and the value is the type and any constraints
+   *                       EXAMPLE: { name: "TEXT UNIQUE NOT NULL" }
+   * @return {hash} hash containing the up and down functions needed for this migration
+   */
+  create_table: function(name, columns) {
+    return {
+      up: function(db) { return db._create_table(name, columns); },
+      down: function(db) { return db._drop_table(name); },
+    };
+  },
+
+  /**
+   * Creates the two migration functions for a drop_table migration.
+   *
+   * @param {string} name the name of the table to drop
+   * @param {hash} columns hash of columns contained in the table to allow recreation of the table. See create_table() for example
+   * @return {hash} hash containing the up and down functions needed for this migration
+   */
+  drop_table: function(name, columns) {
+    return {
+      up: function(db) { return db._drop_table(name); }
+      down: function(db) { return db._create_table(name, columns); }
+    };
+  },
+
+  /**
+   * Converts a key value pair hash into a string. Keys and values are separated by a space and pairs are separated by a comma.
+   *
+   * @param {hash} hash the hash to serialize
+   * @return {string} string of the serialized hash
+   */
   _serialize: function(hash) {
     var r = [];
     for (key in hash) {
@@ -97,101 +153,34 @@ var db = {
     return r.join(',');
   },
 
-  create_table: function(name, columns) {
-    return {
-      up: function(db) { db._create_table(name, columns); },
-      down: function(db) { db._drop_table(name); },
-    };
-  },
-
+  /**
+   * Executes the database query to create a new table.
+   *
+   * @param {string} name the name of the table to drop
+   * @param {hash} columns hash of columns contained in the table to allow recreation of the table. See create_table() for example
+   * @return {bool} true on success, false if there was an error
+   */
   _create_table: function(name, columns) {
-    this._execute("CREATE TABLE :name (:columns)", function(statement) {
+    return this._execute("CREATE TABLE :name (:columns)", function(statement) {
       statement.params.name = name;
       statement.params.columns = this._serialize(columns);
       statement.execute();
     });
   },
 
+
+  /**
+   * Executes the database query to drop a table.
+   *
+   * @param {string} name the name of the table to drop
+   * @return {bool} true on success, false if there was an error
+   */
   _drop_table: function(name) {
-    this._execute("DROP TABLE :name", function(statement) {
+    return this._execute("DROP TABLE :name", function(statement) {
       statement.params.name = name;
       statement.execute();
     });
   },
-
-  _add_column: function(table, column_name, column_def) {
-    this._execute("ALTER TABLE :table ADD COLUMN :column", function(statement) {
-      statement.params.table = table;
-      statement.params.column = column_name + " " + column_def;
-      statement.execute();
-    });
-  },
-
-  _drop_columns: function(table, column_names) {
-    var schema = [];
-    this._execute("PRAGMA table_info(:table)", function(statement) {
-      statement.params.table = table;
-      while (statement.executeStep()) {
-        schema.push({
-          cid: statement.row.cid,
-          name: statement.row.name,
-          type: statement.row.type,
-          notnull: statement.row.notnull,
-          dflt_value: statement.row.dflt_value,
-          pk: statement.row.pk,
-        });
-      }
-    });
-    schema = schema.filter(function(column) {
-      for (index in column_names) {
-        if (column_names[index] === column.name) { return false; }
-      }
-      return true;
-    });
-    this._create_table(table + "_new", schema.reduce(function(a, b) { a[b.name] = this._prepare_column_def(b); }, {}));
-    this._execute("INSERT INTO :new SELECT :columns FROM :old", function(statement) {
-      statement.params.new = table + "_new";
-      statement.params.old = table;
-      statement.params.columns = schema.map(function(column) { return column.name; }).join(",");
-      statement.execute();
-    });
-    this._drop_table(table);
-    this._execute("ALTER TABLE :new RENAME TO :old", function(statement) {
-      statement.params.new = table + "_new";
-      statement.params.old = table;
-      statement.execute();
-    });
-  },
-
-  _prepare_column_def: function(c) {
-    var result = c.type + " DEFAULT (" + c.dflt_value + ") ";
-    if (c.pk) { result += " PRIMARY KEY "; }
-    if (c.notnull) { result += " NOT NULL "; }
-    return result;
-  },
-
-  drop_table: function(name, columns) {
-    return {
-      up: function(db) { db._drop_table(name); }
-      down: function(db) { db._create_table(name, columns); }
-    };
-  },
-
-  add_column: function(table, columns) {
-    return {
-      up: function(db) {
-        for (key in columns) {
-          db._add_column(table, key, columns[key]);
-        }
-      },
-      down: function(db) {
-        for (key in columns) {
-          db._drop_column(table, key);
-        }
-      },
-    };
-  },
-
 
   /*
    * Connects to the database.
