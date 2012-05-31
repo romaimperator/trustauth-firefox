@@ -91,8 +91,12 @@ function Migration(version_number, name, up, down) {
 function Manager(db) {
   return {
     _latest_version : BASE_VERSION, // This is the maximum version number or in other words the version number of the last migration.
-    _current_version: function() { return this._db.get_version(); },     // This version that the database is currently at.
-    _next_version   : function() { return this._db.get_version() + 1; }, // This is the version number of the next migration.
+    _increment_latest_version: function() { return ++this._latest_version; },
+
+    // These three version numbers are relative to a zero-based array. So database version 1 means the first migration which is array index 0.
+    _get_latest_version: function() { return this._latest_version - 1; },
+    _get_current_version: function() { return this._db.get_version() - 1; }, // This version that the database is currently at.
+    _get_next_version   : function() { return this._db.get_version(); },     // This is the version number of the next migration.
 
     _db        : db, // This is the database object that this manager is managing.
     _migrations: [], // This is the list of migrations currently in this manager.
@@ -113,7 +117,7 @@ function Manager(db) {
      */
     add_migration: function(name, functions) {
       if ( ! this._isset(functions) || ! this._isset(functions['up']) || ! this._isset(functions['down'])) { return false; }
-      this._migrations.push(Migration(++(this._latest_version), name, functions['up'], functions['down']));
+      this._migrations.push(Migration(this._increment_latest_version(), name, functions['up'], functions['down']));
       return true;
     },
 
@@ -127,11 +131,7 @@ function Manager(db) {
      * @return {bool} true if successful, false if there was an error
      */
     migrate: function() {
-      var error = false;
-      while(this._current_version() < this._latest_version) {
-        error = error || this._up(this._migrations[this._current_version()]);
-      }
-      return !error;
+      return this.up(this._get_latest_version() - this._get_current_version());
     },
 
     /**
@@ -141,13 +141,13 @@ function Manager(db) {
      * @return {bool} true if successful, false if there was an error
      */
     migrate_to_version: function(version_number) {
-      if(version_number > this._latest_version) { this.migrate(); } // Might as well migrate since we're going to the latest version anyways.
+      if(version_number > this._get_latest_version()) { this.migrate(); } // Might as well migrate since we're going to the latest version anyways.
       if(version_number <= BASE_VERSION) { this.reset(); } // Might as well reset since we're undoing all migrations anyways.
 
-      if(version_number > this._current_version()) {
-        return this.up(version_number - this._current_version());
-      } else if(version_number < this._current_version()) {
-        return this.down(this._current_version() - version_number);
+      if(version_number > this._get_current_version()) {
+        return this.up(version_number - this._get_current_version());
+      } else if(version_number < this._get_current_version()) {
+        return this.down(this._get_current_version() - version_number);
       } else {
         // Do nothing because we're at that version number
         return true;
@@ -163,8 +163,8 @@ function Manager(db) {
     up: function(count) {
       var result = true;
       for(var i = 0; i < count; i++) {
-        if(this._current_version() < this._latest_version) {
-          result = result && this._up(this._migrations[this._next_version()]);
+        if(this._get_current_version() < this._get_latest_version()) {
+          result = result && this._up(this._migrations[this._get_next_version()]);
         }
       }
       return result;
@@ -177,10 +177,11 @@ function Manager(db) {
      * @return {bool} true on success, false if there was an error.
      */
     down: function(count) {
+      if (this._get_current_version() > this._get_latest_version()) { return false; } // The database is a later version than the manager.
       var result = true;
       for(var i = 0; i < count; i++) {
-        if(this._current_version() > 0) {
-          result = result && this._down(this._migrations[this._current_version()]);
+        if(this._get_current_version() >= 0) {
+          result = result && this._down(this._migrations[this._get_current_version()]);
         }
       }
       return result;
@@ -214,7 +215,7 @@ function Manager(db) {
      * @return {bool} true if successful, false if there was an error
      */
     reset: function() {
-      this._db.reset();
+      return this._db.reset() && this._db.set_version(BASE_VERSION) !== null;
     },
 
     /**
