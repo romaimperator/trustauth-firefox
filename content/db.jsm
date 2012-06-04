@@ -43,27 +43,14 @@ var db = {
    * @return {bool} true if successful; false otherwise
    */
   associate_key: function(key_id, site_id) {
-    var db = this.connect();
-
-    var result = false;
     // If this key is available then assign it to this domain
-    if ( ! this.is_key_assigned(key_id)) {
-      try {
-        var statement = db.createStatement("INSERT INTO keys_sites (key_id, site_id) VALUES(:key_id, :site_id)");
+    return ! this.is_key_assigned(key_id) &&
+      this._execute("INSERT INTO keys_sites (key_id, site_id) VALUES(:key_id, :site_id)", function(statement) {
         statement.params.key_id  = key_id;
         statement.params.site_id = site_id;
         statement.execute();
         utils.log('key associated successfully');
-        result = true;
-      } catch (e) {
-        utils.dump(e);
-        utils.log(db.lastErrorString);
-      } finally {
-        statement.finalize();
-        db.close();
-      }
-    }
-    return result;
+      });
   },
 
   /*
@@ -86,28 +73,16 @@ var db = {
    * @return true if the domain is in the database false otherwise
    */
   domain_exist: function(domain) {
-    var db = this.connect();
-
     var domain_exists = false;
-    try {
-      // Create the statement to fetch the most recently created key for this domain
-      var statement = db.createStatement("SELECT domain FROM keys, sites, keys_sites WHERE keys.id=keys_sites.key_id AND sites.id=keys_sites.site_id AND sites.domain=:domain ORDER BY keys.created DESC");
-
-      // Bind the parameter
+    this._execute("SELECT domain " +
+                  "FROM keys, sites, keys_sites " +
+                  "WHERE keys.id=keys_sites.key_id AND sites.id=keys_sites.site_id AND sites.domain=:domain " +
+                  "ORDER BY keys.created DESC", function(statement) {
       statement.params.domain = domain;
-
-      // Execute the query synchronously
       if (statement.executeStep()) {
         domain_exists = domain === statement.row.domain;
       }
-    } catch (ex) {
-      utils.dump(ex);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
+     });
     return domain_exists;
   },
 
@@ -115,22 +90,12 @@ var db = {
    * Fetches the first cached key id from the database.
    */
   fetch_cache_id: function() {
-    var db = this.connect();
-
     var key_id = null;
-    try {
-      var statement = db.createStatement("SELECT id FROM keys WHERE id not in (SELECT key_id FROM keys_sites) LIMIT 1");
+    this._execute("SELECT id FROM keys WHERE id not in (SELECT key_id FROM keys_sites) LIMIT 1", function(statement) {
       if (statement.executeStep()) {
         key_id = statement.row.id;
       }
-    } catch (e) {
-      utils.dump(e);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
+    });
     return key_id;
   },
 
@@ -142,16 +107,12 @@ var db = {
    * @return hash of the public and private key pair or null if the domain doesn't have a key pair
    */
   fetch_key_pair: function(domain) {
-    var db = this.connect();
-
     var key_pair = null;
-    try {
-      var statement = db.createStatement("SELECT k.id, public_key, private_key FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
-
-      // Bind the parameter
+    this._execute("SELECT k.id, public_key, private_key " +
+                  "FROM keys as k, sites as s, keys_sites as ks " +
+                  "WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain " +
+                  "ORDER BY k.created DESC", function(statement) {
       statement.params.domain = domain;
-
-      // Execute the query synchronously
       if (statement.executeStep()) {
         key_pair = {
           'id': statement.row.id,
@@ -161,14 +122,7 @@ var db = {
       } else {
         utils.log("could not find key_pair for domain: " + domain);
       }
-    } catch (ex) {
-      utils.dump(ex);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
+    });
     return key_pair;
   },
 
@@ -179,26 +133,15 @@ var db = {
    * @return {integer} the id of the either the new domain or the previously inserted domain
    */
   fetch_or_store_domain: function(domain) {
-    var db = this.connect();
-
     // First try to insert the domain if it's not already there.
     var site_id = this.get_site_id(domain);
     if (site_id === null) {
-      try {
-        var statement = db.createStatement("INSERT INTO sites (domain) VALUES(:domain)");
+      this._execute("INSERT INTO sites (domain) VALUES(:domain)", function(statement, db) {
         statement.params.domain = domain;
         statement.execute();
-
         site_id = db.lastInsertRowID;
-      } catch (e) {
-        utils.log(db.lastErrorString);
-        utils.dump(e);
-      } finally {
-        statement.finalize();
-        db.close();
-      }
+      });
     }
-
     return site_id;
   },
 
@@ -208,23 +151,12 @@ var db = {
    * @return {string} the hash if there is one, null otherwise
    */
   get_stored_hash: function() {
-    var db = this.connect();
-
     var hash = null;
-    try {
-      var statement = db.createStatement("SELECT hash FROM password_verify LIMIT 1");
-
+    this._execute("SELECT hash FROM password_verify LIMIT 1", function(statement) {
       if (statement.executeStep()) {
         hash = statement.row.hash;
       }
-    } catch(ex) {
-      utils.dump(ex);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
+    });
     return hash;
   },
 
@@ -235,23 +167,13 @@ var db = {
    * @return the site_id
    */
   get_site_id: function(domain) {
-    var db = this.connect();
-
     var row_id = null;
-    try {
-      var statement = db.createStatement("SELECT id FROM sites WHERE domain=:domain");
+    this._execute("SELECT id FROM sites WHERE domain=:domain", function(statement) {
       statement.params.domain = domain;
       if (statement.executeStep()) {
         row_id = statement.row.id;
       }
-    } catch (ex) {
-      utils.dump(ex);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-    }
-
-    db.close();
+    });
     return row_id;
   },
 
@@ -298,27 +220,13 @@ var db = {
    * @return {bool} true if the key is assigned already; false otherwise
    */
   is_key_assigned: function(key_id) {
-    var db = this.connect();
-
     var result = false;
-    try {
-      var statement = db.createStatement("SELECT * FROM keys_sites WHERE key_id=:key_id");
+    this._execute("SELECT * FROM keys_sites WHERE key_id=:key_id", function(statement) {
       statement.params.key_id = key_id;
-
       if (statement.executeStep()) {
-        if (statement.row.key_id) {
-          result = true;
-        }
+        result = (statement.row.key_id) ? true : false;
       }
-    } catch (e) {
-      utils.dump(e);
-      utils.log(db.lastErrorString);
-      result = true;
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
+    });
     return result;
   },
 
@@ -361,24 +269,12 @@ var db = {
    * @param {forge key objects} keys the key pair to store as the next cache key.
    */
   store_cache_pair: function(public_key, private_key) {
-    var db = this.connect();
-
-    var result = false;
-    try {
-      var statement = db.createStatement("INSERT INTO keys (public_key, private_key, created) VALUES(:public_key, :private_key, :created)");
+    return this._execute("INSERT INTO keys (public_key, private_key, created) VALUES(:public_key, :private_key, :created)", function(statement) {
       statement.params.public_key  = public_key;
       statement.params.private_key = private_key;
       statement.params.created     = utils.get_time();
-      if (statement.executeStep()) result = true;
-    } catch (e) {
-      utils.dump(e);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
-    return result;
+      statement.execute();
+    });
   },
 
   /*
@@ -387,25 +283,13 @@ var db = {
    * @param key the key to store
    */
   store_encryption_key: function(key) {
-    var success = false;
     if (! is_password_set()) {
-      var db = this.connect();
-
-      try {
-        var statement = db.createStatement("INSERT OR ABORT INTO password_verify (hash) VALUES(:hash)");
+      return this._execute("INSERT OR ABORT INTO password_verify (hash) VALUES(:hash)", function(statement) {
         statement.params.hash = this.get_storage_hash(key);
-
-        success = statement.executeStep();
-      } catch (ex) {
-        utils.dump(ex);
-        utils.log(db.lastErrorString);
-      } finally {
-        statement.finalize();
-        db.close();
-      }
-
+        statement.execute();
+      });
     }
-    return success;
+    return false;
   },
 
   /**
@@ -463,7 +347,7 @@ var db = {
    * result on success or failure.
    *
    * @param {string} sql string of SQL code to pass to createStatement
-   * @param {function(statement)} statement_handler a function that takes the statement as a parameter and does stuff with the statement
+   * @param {function(statement, db)} statement_handler a function that takes the statement and db connection as parameters and does stuff with the statement
    * @return {bool} true on success, false if there was an error
    */
   _execute: function(sql, statement_handler) {
@@ -472,7 +356,7 @@ var db = {
     var result = false;
     try {
       var statement = db.createStatement(sql);
-      if (statement_handler) { statement_handler(statement); }
+      if (statement_handler) { statement_handler(statement, db); }
       else { statement.execute(); }
       result = true;
     } catch (e) {
