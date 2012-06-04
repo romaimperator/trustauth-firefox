@@ -35,169 +35,6 @@ var db = {
   manager: null,
 
   /**
-   * This function wraps some SQL execution in the try...catch...finally and returns a boolean
-   * result on success or failure.
-   *
-   * @param {string} sql string of SQL code to pass to createStatement
-   * @param {function(statement)} statement_handler a function that takes the statement as a parameter and does stuff with the statement
-   * @return {bool} true on success, false if there was an error
-   */
-  _execute: function(sql, statement_handler) {
-    var db = this.connect();
-
-    var result = false;
-    try {
-      var statement = db.createStatement(sql);
-      if (statement_handler) { statement_handler(statement); }
-      else { statement.execute(); }
-      result = true;
-    } catch (e) {
-      utils.dump(e);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-    return result;
-  },
-
-  /**
-   * Fetches the database version number from the database.
-   *
-   * @return {int} the current migration version of the database
-   */
-  _get_version: function() {
-    var version = null;
-    this._execute("SELECT version FROM migrations", function(statement) {
-      if (statement.executeStep()) {
-        version = statement.row.version;
-      }
-    });
-    return version;
-  },
-
-  /**
-   * Returns the current database version number of the database. The version
-   * is cached to avoid querying each call.
-   *
-   * @return {int} the current migration version of the database
-   */
-  get_version: function() {
-    return this.version;
-  },
-
-  /**
-   * Sets the version number of the database.
-   *
-   * @param {int} version the new version number of the database
-   * @return {int} version if update was successful, null if there was an error
-   */
-  set_version: function(version) {
-    var db = this;
-    var sql = '';
-    if (this._get_version() !== null) {
-      sql = "UPDATE migrations SET version=:version";
-    } else {
-      sql = "INSERT INTO migrations (version) VALUES (:version)";
-    }
-    return this._execute(sql, function(statement) {
-      statement.params.version = version;
-      statement.execute();
-      db.version = version;
-    }) ? this.version : null;
-  },
-
-  /**
-   * Resets the database to before any migrations were applied.
-   *
-   * @return {bool} true on success, false if there was an error
-   */
-  reset: function() {
-    return this._drop_table("keys") &&
-           this._drop_table("sites") &&
-           this._drop_table("keys_sites") &&
-           this._drop_table("password_verify");
-  },
-
-  /**
-   * Creates the two migration functions for a create_table migration.
-   *
-   * @param {string} name the name of the new table
-   * @param {hash} columns hash of columns where the key is the column name and the value is the type and any constraints
-   *                       EXAMPLE: { name: "TEXT UNIQUE NOT NULL" }
-   * @return {hash} hash containing the up and down functions needed for this migration
-   */
-  _create_table_migration: function(name, columns) {
-    return {
-      up: function(db) { return db._create_table(name, columns); },
-      down: function(db) { return db._drop_table(name); },
-    };
-  },
-
-  /**
-   * Creates the two migration functions for a drop_table migration.
-   *
-   * @param {string} name the name of the table to drop
-   * @param {hash} columns hash of columns contained in the table to allow recreation of the table. See create_table() for example
-   * @return {hash} hash containing the up and down functions needed for this migration
-   */
-  _drop_table_migration: function(name, columns) {
-    return {
-      up: function(db) { return db._drop_table(name); },
-      down: function(db) { return db._create_table(name, columns); },
-    };
-  },
-
-  /**
-   * Converts a key value pair hash into a string. Keys and values are separated by a space and pairs are separated by a comma.
-   *
-   * @param {hash} hash the hash to serialize
-   * @return {string} string of the serialized hash
-   */
-  _serialize: function(hash) {
-    var r = [];
-    for (key in hash) {
-      r.push(key + " " + hash[key]);
-    }
-    return r.join(',');
-  },
-
-  /**
-   * Executes the database query to create a new table.
-   *
-   * @param {string} name the name of the table to drop
-   * @param {hash} columns hash of columns contained in the table to allow recreation of the table. See create_table() for example
-   * @return {bool} true on success, false if there was an error
-   */
-  _create_table: function(name, columns) {
-    return this._execute("CREATE TABLE " + name + " (" + this._serialize(columns) + ")");
-  },
-
-
-  /**
-   * Executes the database query to drop a table.
-   *
-   * @param {string} name the name of the table to drop
-   * @return {bool} true on success, false if there was an error
-   */
-  _drop_table: function(name) {
-    return this._execute("DROP TABLE " + name);
-  },
-
-  /*
-   * Connects to the database.
-   */
-  connect: function() {
-    Components.utils.import("resource://gre/modules/Services.jsm");
-    Components.utils.import("resource://gre/modules/FileUtils.jsm");
-
-    // Establish a connection to the database
-    var file = FileUtils.getFile("ProfD", ["trustauth", "trustauth.sqlite"]);
-    var file_exists = file.exists();
-    return Services.storage.openDatabase(file);
-  },
-
-  /**
    * Associates the given key id with the given domain id. This function fails if the key is
    * already assigned to another domain.
    *
@@ -227,6 +64,19 @@ var db = {
       }
     }
     return result;
+  },
+
+  /*
+   * Connects to the database.
+   */
+  connect: function() {
+    Components.utils.import("resource://gre/modules/Services.jsm");
+    Components.utils.import("resource://gre/modules/FileUtils.jsm");
+
+    // Establish a connection to the database
+    var file = FileUtils.getFile("ProfD", ["trustauth", "trustauth.sqlite"]);
+    var file_exists = file.exists();
+    return Services.storage.openDatabase(file);
   },
 
   /*
@@ -405,6 +255,16 @@ var db = {
     return row_id;
   },
 
+  /**
+   * Returns the current database version number of the database. The version
+   * is cached to avoid querying each call.
+   *
+   * @return {int} the current migration version of the database
+   */
+  get_version: function() {
+    return this.version;
+  },
+
   /*
    * Initializes the place to store the public and private key pairs.
    */
@@ -463,6 +323,39 @@ var db = {
   },
 
   /**
+   * Resets the database to before any migrations were applied.
+   *
+   * @return {bool} true on success, false if there was an error
+   */
+  reset: function() {
+    return this._drop_table("keys") &&
+           this._drop_table("sites") &&
+           this._drop_table("keys_sites") &&
+           this._drop_table("password_verify");
+  },
+
+  /**
+   * Sets the version number of the database.
+   *
+   * @param {int} version the new version number of the database
+   * @return {int} version if update was successful, null if there was an error
+   */
+  set_version: function(version) {
+    var db = this;
+    var sql = '';
+    if (this._get_version() !== null) {
+      sql = "UPDATE migrations SET version=:version";
+    } else {
+      sql = "INSERT INTO migrations (version) VALUES (:version)";
+    }
+    return this._execute(sql, function(statement) {
+      statement.params.version = version;
+      statement.execute();
+      db.version = version;
+    }) ? this.version : null;
+  },
+
+  /**
    * Stores a cache key in the database for future use.
    *
    * @param {forge key objects} keys the key pair to store as the next cache key.
@@ -515,4 +408,109 @@ var db = {
     return success;
   },
 
+  /**
+   * Executes the database query to create a new table.
+   *
+   * @param {string} name the name of the table to drop
+   * @param {hash} columns hash of columns contained in the table to allow recreation of the table. See create_table() for example
+   * @return {bool} true on success, false if there was an error
+   */
+  _create_table: function(name, columns) {
+    return this._execute("CREATE TABLE " + name + " (" + this._serialize(columns) + ")");
+  },
+
+  /**
+   * Creates the two migration functions for a create_table migration.
+   *
+   * @param {string} name the name of the new table
+   * @param {hash} columns hash of columns where the key is the column name and the value is the type and any constraints
+   *                       EXAMPLE: { name: "TEXT UNIQUE NOT NULL" }
+   * @return {hash} hash containing the up and down functions needed for this migration
+   */
+  _create_table_migration: function(name, columns) {
+    return {
+      up: function(db) { return db._create_table(name, columns); },
+      down: function(db) { return db._drop_table(name); },
+    };
+  },
+
+  /**
+   * Executes the database query to drop a table.
+   *
+   * @param {string} name the name of the table to drop
+   * @return {bool} true on success, false if there was an error
+   */
+  _drop_table: function(name) {
+    return this._execute("DROP TABLE " + name);
+  },
+
+  /**
+   * Creates the two migration functions for a drop_table migration.
+   *
+   * @param {string} name the name of the table to drop
+   * @param {hash} columns hash of columns contained in the table to allow recreation of the table. See create_table() for example
+   * @return {hash} hash containing the up and down functions needed for this migration
+   */
+  _drop_table_migration: function(name, columns) {
+    return {
+      up: function(db) { return db._drop_table(name); },
+      down: function(db) { return db._create_table(name, columns); },
+    };
+  },
+
+  /**
+   * This function wraps some SQL execution in the try...catch...finally and returns a boolean
+   * result on success or failure.
+   *
+   * @param {string} sql string of SQL code to pass to createStatement
+   * @param {function(statement)} statement_handler a function that takes the statement as a parameter and does stuff with the statement
+   * @return {bool} true on success, false if there was an error
+   */
+  _execute: function(sql, statement_handler) {
+    var db = this.connect();
+
+    var result = false;
+    try {
+      var statement = db.createStatement(sql);
+      if (statement_handler) { statement_handler(statement); }
+      else { statement.execute(); }
+      result = true;
+    } catch (e) {
+      utils.dump(e);
+      utils.log(db.lastErrorString);
+    } finally {
+      statement.finalize();
+      db.close();
+    }
+    return result;
+  },
+
+  /**
+   * Fetches the database version number from the database.
+   *
+   * @return {int} the current migration version of the database
+   */
+  _get_version: function() {
+    var version = null;
+    this._execute("SELECT version FROM migrations", function(statement) {
+      if (statement.executeStep()) {
+        version = statement.row.version;
+      }
+    });
+    return version;
+  },
+
+  /**
+   * Converts a key value pair hash into a string. Keys and values are separated by a space and pairs are separated by a comma.
+   *
+   * @param {hash} hash the hash to serialize
+   * @return {string} string of the serialized hash
+   */
+  _serialize: function(hash) {
+    var r = [];
+    for (key in hash) {
+      r.push(key + " " + hash[key]);
+    }
+    return r.join(',');
+  },
 };
