@@ -427,6 +427,17 @@ utils.get_domain = function() {
     return pack_data(MESSAGE_TYPE['response'], data, key);
   };
 
+  /**
+   * If there is a password set, prompt for it. If not, ask to set one.
+   */
+  var prompt_or_set_new_password = function() {
+    if (db.is_password_set()) {
+      prompt_password();
+    } else {
+      prompt_new_password();
+    }
+  };
+
 
 
 /******************************/
@@ -438,7 +449,7 @@ utils.get_domain = function() {
    */
   var init_listener = function() {
     gBrowser.addEventListener("load", on_page_load, true);
-    document.getElementById('trustauth-menu-unlock').addEventListener("click", prompt_password, false);
+    document.getElementById('trustauth-menu-unlock').addEventListener("click", prompt_or_set_new_password, false);
   };
 
   /**
