@@ -142,7 +142,9 @@ utils.get_domain = function() {
       });
     } else {
       db.associate_key(db.fetch_cache_id(), site_id);
-      create_cache_pair();
+      if (db.count_cache_keys() < TRUSTAUTH_CACHE_KEY_SIZE) {
+        create_cache_pair();
+      }
     }
   };
 

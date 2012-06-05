@@ -28,8 +28,30 @@ var EXPORTED_SYMBOLS = [ 'db' ];
 Components.utils.import("chrome://trustauth/content/utils.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 Components.utils.import("chrome://trustauth/content/crypto.jsm");
+Components.utils.import("chrome://trustauth/content/migrations.jsm");
 
 var db = {
+  version: null,
+  manager: null,
+
+  /**
+   * Associates the given key id with the given domain id. This function fails if the key is
+   * already assigned to another domain.
+   *
+   * @param {integer} key_id the key id to associate this domain to
+   * @param {integer} site_id the id of the domain to associate this key to
+   * @return {bool} true if successful; false otherwise
+   */
+  associate_key: function(key_id, site_id) {
+    // If this key is available then assign it to this domain
+    return ! this.is_key_assigned(key_id) &&
+      this._execute("INSERT INTO keys_sites (key_id, site_id) VALUES(:key_id, :site_id)", function(statement) {
+        statement.params.key_id  = key_id;
+        statement.params.site_id = site_id;
+        statement.execute();
+        utils.log('key associated successfully');
+      });
+  },
 
   /*
    * Connects to the database.
@@ -44,36 +66,14 @@ var db = {
     return Services.storage.openDatabase(file);
   },
 
-  /**
-   * Associates the given key id with the given domain id. This function fails if the key is
-   * already assigned to another domain.
-   *
-   * @param {integer} key_id the key id to associate this domain to
-   * @param {integer} site_id the id of the domain to associate this key to
-   * @return {bool} true if successful; false otherwise
-   */
-  associate_key: function(key_id, site_id) {
-    var db = this.connect();
-
-    var result = false;
-    // If this key is available then assign it to this domain
-    if ( ! this.is_key_assigned(key_id)) {
-      try {
-        var statement = db.createStatement("INSERT INTO keys_sites (key_id, site_id) VALUES(:key_id, :site_id)");
-        statement.params.key_id  = key_id;
-        statement.params.site_id = site_id;
-        statement.execute();
-        utils.log('key associated successfully');
-        result = true;
-      } catch (e) {
-        utils.dump(e);
-        utils.log(db.lastErrorString);
-      } finally {
-        statement.finalize();
-        db.close();
+  count_cache_keys: function() {
+    var count = null;
+    this._execute("SELECT COUNT(id) as count_id FROM keys WHERE id not in (SELECT key_id FROM keys_sites)", function(statement) {
+      if (statement.executeStep()) {
+        count = statement.row.count_id;
       }
-    }
-    return result;
+    });
+    return count;
   },
 
   /*
@@ -83,28 +83,16 @@ var db = {
    * @return true if the domain is in the database false otherwise
    */
   domain_exist: function(domain) {
-    var db = this.connect();
-
     var domain_exists = false;
-    try {
-      // Create the statement to fetch the most recently created key for this domain
-      var statement = db.createStatement("SELECT domain FROM keys, sites, keys_sites WHERE keys.id=keys_sites.key_id AND sites.id=keys_sites.site_id AND sites.domain=:domain ORDER BY keys.created DESC");
-
-      // Bind the parameter
+    this._execute("SELECT domain " +
+                  "FROM keys, sites, keys_sites " +
+                  "WHERE keys.id=keys_sites.key_id AND sites.id=keys_sites.site_id AND sites.domain=:domain " +
+                  "ORDER BY keys.created DESC", function(statement) {
       statement.params.domain = domain;
-
-      // Execute the query synchronously
       if (statement.executeStep()) {
         domain_exists = domain === statement.row.domain;
       }
-    } catch (ex) {
-      utils.dump(ex);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
+     });
     return domain_exists;
   },
 
@@ -112,22 +100,12 @@ var db = {
    * Fetches the first cached key id from the database.
    */
   fetch_cache_id: function() {
-    var db = this.connect();
-
     var key_id = null;
-    try {
-      var statement = db.createStatement("SELECT id FROM keys WHERE id not in (SELECT key_id FROM keys_sites) LIMIT 1");
+    this._execute("SELECT id FROM keys WHERE id not in (SELECT key_id FROM keys_sites) LIMIT 1", function(statement) {
       if (statement.executeStep()) {
         key_id = statement.row.id;
       }
-    } catch (e) {
-      utils.dump(e);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
+    });
     return key_id;
   },
 
@@ -139,16 +117,12 @@ var db = {
    * @return hash of the public and private key pair or null if the domain doesn't have a key pair
    */
   fetch_key_pair: function(domain) {
-    var db = this.connect();
-
     var key_pair = null;
-    try {
-      var statement = db.createStatement("SELECT k.id, public_key, private_key FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
-
-      // Bind the parameter
+    this._execute("SELECT k.id, public_key, private_key " +
+                  "FROM keys as k, sites as s, keys_sites as ks " +
+                  "WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain " +
+                  "ORDER BY k.created DESC", function(statement) {
       statement.params.domain = domain;
-
-      // Execute the query synchronously
       if (statement.executeStep()) {
         key_pair = {
           'id': statement.row.id,
@@ -158,14 +132,7 @@ var db = {
       } else {
         utils.log("could not find key_pair for domain: " + domain);
       }
-    } catch (ex) {
-      utils.dump(ex);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
+    });
     return key_pair;
   },
 
@@ -176,26 +143,15 @@ var db = {
    * @return {integer} the id of the either the new domain or the previously inserted domain
    */
   fetch_or_store_domain: function(domain) {
-    var db = this.connect();
-
     // First try to insert the domain if it's not already there.
     var site_id = this.get_site_id(domain);
     if (site_id === null) {
-      try {
-        var statement = db.createStatement("INSERT INTO sites (domain) VALUES(:domain)");
+      this._execute("INSERT INTO sites (domain) VALUES(:domain)", function(statement, db) {
         statement.params.domain = domain;
         statement.execute();
-
         site_id = db.lastInsertRowID;
-      } catch (e) {
-        utils.log(db.lastErrorString);
-        utils.dump(e);
-      } finally {
-        statement.finalize();
-        db.close();
-      }
+      });
     }
-
     return site_id;
   },
 
@@ -205,23 +161,12 @@ var db = {
    * @return {string} the hash if there is one, null otherwise
    */
   get_stored_hash: function() {
-    var db = this.connect();
-
     var hash = null;
-    try {
-      var statement = db.createStatement("SELECT hash FROM password_verify LIMIT 1");
-
+    this._execute("SELECT hash FROM password_verify LIMIT 1", function(statement) {
       if (statement.executeStep()) {
         hash = statement.row.hash;
       }
-    } catch(ex) {
-      utils.dump(ex);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
+    });
     return hash;
   },
 
@@ -232,38 +177,40 @@ var db = {
    * @return the site_id
    */
   get_site_id: function(domain) {
-    var db = this.connect();
-
     var row_id = null;
-    try {
-      var statement = db.createStatement("SELECT id FROM sites WHERE domain=:domain");
+    this._execute("SELECT id FROM sites WHERE domain=:domain", function(statement) {
       statement.params.domain = domain;
       if (statement.executeStep()) {
         row_id = statement.row.id;
       }
-    } catch (ex) {
-      utils.dump(ex);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-    }
-
-    db.close();
+    });
     return row_id;
+  },
+
+  /**
+   * Returns the current database version number of the database. The version
+   * is cached to avoid querying each call.
+   *
+   * @return {int} the current migration version of the database
+   */
+  get_version: function() {
+    return this.version;
   },
 
   /*
    * Initializes the place to store the public and private key pairs.
    */
   init: function() {
-    var db = this.connect();
+    this._init_migration_table();
+    var db_version = this._get_version();
+    this.version = (db_version) ? db_version : this.set_version(BASE_VERSION);
+    this.manager = Manager(this);
 
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS password_verify (hash TEXT)");
-
-    db.close();
+    this.manager.add_migration("Create keys table", this._create_table_migration("keys", { id: "INTEGER PRIMARY KEY", public_key: "TEXT", private_key: "TEXT", created: "TEXT" }));
+    this.manager.add_migration("Create sites table", this._create_table_migration("sites", { id: "INTEGER PRIMARY KEY", domain: "TEXT UNIQUE" }));
+    this.manager.add_migration("Create key_sites table", this._create_table_migration("key_sites", { key_id: "NUMERIC", site_id: "NUMERIC" }));
+    this.manager.add_migration("Create password_verify table", this._create_table_migration("password_verify", { hash: "TEXT" }));
+    this.manager.migrate();
   },
 
   /**
@@ -273,28 +220,47 @@ var db = {
    * @return {bool} true if the key is assigned already; false otherwise
    */
   is_key_assigned: function(key_id) {
-    var db = this.connect();
-
     var result = false;
-    try {
-      var statement = db.createStatement("SELECT * FROM keys_sites WHERE key_id=:key_id");
+    this._execute("SELECT * FROM keys_sites WHERE key_id=:key_id", function(statement) {
       statement.params.key_id = key_id;
-
       if (statement.executeStep()) {
-        if (statement.row.key_id) {
-          result = true;
-        }
+        result = (statement.row.key_id) ? true : false;
       }
-    } catch (e) {
-      utils.dump(e);
-      utils.log(db.lastErrorString);
-      result = true;
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
+    });
     return result;
+  },
+
+  /**
+   * Resets the database to before any migrations were applied.
+   *
+   * @return {bool} true on success, false if there was an error
+   */
+  reset: function() {
+    return this._drop_table("keys") &&
+           this._drop_table("sites") &&
+           this._drop_table("keys_sites") &&
+           this._drop_table("password_verify");
+  },
+
+  /**
+   * Sets the version number of the database.
+   *
+   * @param {int} version the new version number of the database
+   * @return {int} version if update was successful, null if there was an error
+   */
+  set_version: function(version) {
+    var db = this;
+    var sql = '';
+    if (this._get_version() !== null) {
+      sql = "UPDATE migrations SET version=:version";
+    } else {
+      sql = "INSERT INTO migrations (version) VALUES (:version)";
+    }
+    return this._execute(sql, function(statement) {
+      statement.params.version = version;
+      statement.execute();
+      db.version = version;
+    }) ? this.version : null;
   },
 
   /**
@@ -303,24 +269,12 @@ var db = {
    * @param {forge key objects} keys the key pair to store as the next cache key.
    */
   store_cache_pair: function(public_key, private_key) {
-    var db = this.connect();
-
-    var result = false;
-    try {
-      var statement = db.createStatement("INSERT INTO keys (public_key, private_key, created) VALUES(:public_key, :private_key, :created)");
+    return this._execute("INSERT INTO keys (public_key, private_key, created) VALUES(:public_key, :private_key, :created)", function(statement) {
       statement.params.public_key  = public_key;
       statement.params.private_key = private_key;
       statement.params.created     = utils.get_time();
-      if (statement.executeStep()) result = true;
-    } catch (e) {
-      utils.dump(e);
-      utils.log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
-    return result;
+      statement.execute();
+    });
   },
 
   /*
@@ -329,25 +283,128 @@ var db = {
    * @param key the key to store
    */
   store_encryption_key: function(key) {
-    var success = false;
     if (! is_password_set()) {
-      var db = this.connect();
-
-      try {
-        var statement = db.createStatement("INSERT OR ABORT INTO password_verify (hash) VALUES(:hash)");
+      return this._execute("INSERT OR ABORT INTO password_verify (hash) VALUES(:hash)", function(statement) {
         statement.params.hash = this.get_storage_hash(key);
-
-        success = statement.executeStep();
-      } catch (ex) {
-        utils.dump(ex);
-        utils.log(db.lastErrorString);
-      } finally {
-        statement.finalize();
-        db.close();
-      }
-
+        statement.execute();
+      });
     }
-    return success;
+    return false;
   },
 
+  /**
+   * Executes the database query to create a new table.
+   *
+   * @param {string} name the name of the table to drop
+   * @param {hash} columns hash of columns contained in the table to allow recreation of the table. See create_table() for example
+   * @return {bool} true on success, false if there was an error
+   */
+  _create_table: function(name, columns) {
+    return this._execute("CREATE TABLE " + name + " (" + this._serialize(columns) + ")");
+  },
+
+  /**
+   * Creates the two migration functions for a create_table migration.
+   *
+   * @param {string} name the name of the new table
+   * @param {hash} columns hash of columns where the key is the column name and the value is the type and any constraints
+   *                       EXAMPLE: { name: "TEXT UNIQUE NOT NULL" }
+   * @return {hash} hash containing the up and down functions needed for this migration
+   */
+  _create_table_migration: function(name, columns) {
+    return {
+      up: function(db) { return db._create_table(name, columns); },
+      down: function(db) { return db._drop_table(name); },
+    };
+  },
+
+  /**
+   * Executes the database query to drop a table.
+   *
+   * @param {string} name the name of the table to drop
+   * @return {bool} true on success, false if there was an error
+   */
+  _drop_table: function(name) {
+    return this._execute("DROP TABLE " + name);
+  },
+
+  /**
+   * Creates the two migration functions for a drop_table migration.
+   *
+   * @param {string} name the name of the table to drop
+   * @param {hash} columns hash of columns contained in the table to allow recreation of the table. See create_table() for example
+   * @return {hash} hash containing the up and down functions needed for this migration
+   */
+  _drop_table_migration: function(name, columns) {
+    return {
+      up: function(db) { return db._drop_table(name); },
+      down: function(db) { return db._create_table(name, columns); },
+    };
+  },
+
+  /**
+   * This function wraps some SQL execution in the try...catch...finally and returns a boolean
+   * result on success or failure.
+   *
+   * @param {string} sql string of SQL code to pass to createStatement
+   * @param {function(statement, db)} statement_handler a function that takes the statement and db connection as parameters and does stuff with the statement
+   * @return {bool} true on success, false if there was an error
+   */
+  _execute: function(sql, statement_handler) {
+    var db = this.connect();
+
+    var result = false;
+    try {
+      var statement = db.createStatement(sql);
+      if (statement_handler) { statement_handler(statement, db); }
+      else { statement.execute(); }
+      result = true;
+    } catch (e) {
+      utils.dump(e);
+      utils.log(db.lastErrorString);
+    } finally {
+      statement.finalize();
+      db.close();
+    }
+    return result;
+  },
+
+  /**
+   * Fetches the database version number from the database.
+   *
+   * @return {int} the current migration version of the database
+   */
+  _get_version: function() {
+    var version = null;
+    this._execute("SELECT version FROM migrations", function(statement) {
+      if (statement.executeStep()) {
+        version = statement.row.version;
+      }
+    });
+    return version;
+  },
+
+  /**
+   * Creates the migrations table if it does not exist.
+   *
+   * @return {bool} true if the SQL query successfully executed, false if there was an error. NOTE: if the table
+   *                already exists it will still return true.
+   */
+  _init_migration_table: function() {
+    return this._execute("CREATE TABLE IF NOT EXISTS migrations (version NUMERIC)");
+  },
+
+  /**
+   * Converts a key value pair hash into a string. Keys and values are separated by a space and pairs are separated by a comma.
+   *
+   * @param {hash} hash the hash to serialize
+   * @return {string} string of the serialized hash
+   */
+  _serialize: function(hash) {
+    var r = [];
+    for (key in hash) {
+      r.push(key + " " + hash[key]);
+    }
+    return r.join(',');
+  },
 };
