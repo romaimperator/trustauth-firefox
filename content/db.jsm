@@ -66,6 +66,16 @@ var db = {
     return Services.storage.openDatabase(file);
   },
 
+  count_cache_keys: function() {
+    var count = null;
+    this._execute("SELECT COUNT(id) as count_id FROM keys WHERE id not in (SELECT key_id FROM keys_sites)", function(statement) {
+      if (statement.executeStep()) {
+        count = statement.row.count_id;
+      }
+    });
+    return count;
+  },
+
   /*
    * Checks to see if the given domain has a key in the database
    *

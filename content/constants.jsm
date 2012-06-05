@@ -36,6 +36,7 @@ var EXPORTED_SYMBOLS = [
   'TIMEOUT',
   'HASH_LENGTH',
   'MESSAGE_TYPE',
+  'TRUSTAUTH_CACHE_KEY_COUNT',
 ];
 
 var TRUSTAUTH_AJAX_LOADER = 'chrome://trustauth/skin/ajax-loader.gif';
@@ -58,3 +59,5 @@ var MESSAGE_TYPE = {
   'challenge': 0,
   'response' : 1,
 };
+
+var TRUSTAUTH_CACHE_KEY_COUNT = 1;
