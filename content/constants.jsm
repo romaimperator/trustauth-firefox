@@ -37,6 +37,8 @@ var EXPORTED_SYMBOLS = [
   'HASH_LENGTH',
   'MESSAGE_TYPE',
   'TRUSTAUTH_CACHE_KEY_COUNT',
+  'ITERATION_COUNT',
+  'KEY_LENGTH',
 ];
 
 var TRUSTAUTH_AJAX_LOADER = 'chrome://trustauth/skin/ajax-loader.gif';
@@ -61,3 +63,7 @@ var MESSAGE_TYPE = {
 };
 
 var TRUSTAUTH_CACHE_KEY_COUNT = 1;
+
+var ITERATION_COUNT = 4096;
+
+var KEY_LENGTH = 32; // 256 bits
