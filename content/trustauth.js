@@ -137,14 +137,12 @@ utils.get_domain = function() {
       create_cache_pair(function() {
         key_id = db.fetch_cache_id();
         db.associate_key(key_id, site_id);
-        create_cache_pair();
+        replenish_cache();
         if (after_assign) { after_assign(); }
       });
     } else {
       db.associate_key(db.fetch_cache_id(), site_id);
-      if (db.count_cache_keys() < TRUSTAUTH_CACHE_KEY_SIZE) {
-        create_cache_pair();
-      }
+      replenish_cache();
     }
   };
 
@@ -415,6 +413,15 @@ utils.get_domain = function() {
       prompt_password();
     } else {
       prompt_new_password();
+    }
+  };
+
+  /**
+   * Creates new key pairs for the cache of keys until the CACHE_KEY_COUNT is reached.
+   */
+  var replenish_cache = function() {
+    if (db.count_cache_keys() < CACHE_KEY_COUNT) {
+      create_cache_pair(replenish_cache);
     }
   };
 
