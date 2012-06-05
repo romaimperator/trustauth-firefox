@@ -239,17 +239,6 @@ utils.get_domain = function() {
     return utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).parentNode;
   };
 
-  /*
-   * Returns a hash of the encryption key that is safe to store for
-   * password verification.
-   *
-   * @param encryption_key the key to get a storage hash of
-   * @return the hash of the key
-   */
-  var get_storage_hash = function(encryption_key) {
-    return utils.sha256(encryption_key + TRUSTAUTH_STORAGE_SALT);
-  };
-
   /**
    * Inserts the key for the current domain into the "trustauth-key" field.
    */
@@ -258,15 +247,6 @@ utils.get_domain = function() {
       var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(utils.get_domain()), get_encryption_key());
       utils.get_doc().getElementById(TRUSTAUTH_KEY_ID).value = keys['public_key'];
     }
-  };
-
-  /*
-   * Returns true if the master password has been set before.
-   *
-   * @return boolean
-   */
-  var is_password_set = function() {
-    return db.get_stored_hash() !== null;
   };
 
   /*
@@ -541,7 +521,7 @@ utils.get_domain = function() {
   var verify_password = function(password) {
     var hash = db.get_stored_hash();
 
-    return (hash !== null && hash === get_storage_hash(ta_crypto.calculate_encryption_key(password, TRUSTAUTH_ENC_KEY_SALT)));
+    return (hash !== null && hash === db.get_storage_hash(ta_crypto.calculate_encryption_key(password, TRUSTAUTH_ENC_KEY_SALT)));
   };
 
   // Initialize the TrustAuth object

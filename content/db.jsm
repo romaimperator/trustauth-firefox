@@ -187,6 +187,17 @@ var db = {
     return row_id;
   },
 
+  /*
+   * Returns a hash of the encryption key that is safe to store for
+   * password verification.
+   *
+   * @param encryption_key the key to get a storage hash of
+   * @return the hash of the key
+   */
+  get_storage_hash: function(encryption_key) {
+    return utils.sha256(encryption_key + TRUSTAUTH_STORAGE_SALT);
+  },
+
   /**
    * Returns the current database version number of the database. The version
    * is cached to avoid querying each call.
@@ -228,6 +239,15 @@ var db = {
       }
     });
     return result;
+  },
+
+  /*
+   * Returns true if the master password has been set before.
+   *
+   * @return boolean
+   */
+  is_password_set: function() {
+    return this.get_stored_hash() !== null;
   },
 
   /**
@@ -283,9 +303,10 @@ var db = {
    * @param key the key to store
    */
   store_encryption_key: function(key) {
-    if (! is_password_set()) {
+    var _this = this;
+    if (! this.is_password_set()) {
       return this._execute("INSERT OR ABORT INTO password_verify (hash) VALUES(:hash)", function(statement) {
-        statement.params.hash = this.get_storage_hash(key);
+        statement.params.hash = _this.get_storage_hash(key);
         statement.execute();
       });
     }
