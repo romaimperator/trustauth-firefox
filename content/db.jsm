@@ -204,16 +204,6 @@ var db = {
   },
 
   /**
-   * Creates the migrations table if it does not exist.
-   *
-   * @return {bool} true if the SQL query successfully executed, false if there was an error. NOTE: if the table
-   *                already exists it will still return true.
-   */
-  _init_migration_table: function() {
-    return this._execute("CREATE TABLE IF NOT EXISTS migrations (version NUMERIC)");
-  },
-
-  /**
    * Checks to see if the key_id is already assigned to a domain.
    *
    * @param {integer} key_id the key id to check
@@ -382,6 +372,16 @@ var db = {
       }
     });
     return version;
+  },
+
+  /**
+   * Creates the migrations table if it does not exist.
+   *
+   * @return {bool} true if the SQL query successfully executed, false if there was an error. NOTE: if the table
+   *                already exists it will still return true.
+   */
+  _init_migration_table: function() {
+    return this._execute("CREATE TABLE IF NOT EXISTS migrations (version NUMERIC)");
   },
 
   /**
