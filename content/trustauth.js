@@ -67,7 +67,8 @@ utils.get_domain = function() {
   var initialized = false;
   var disabled    = false;
 
-  var password_key = null;
+  var password_key   = null;
+  var encryption_key = null;
 
 
 
@@ -118,6 +119,9 @@ utils.get_domain = function() {
    * Executes after the addon is unlocked. Used to encrypt the login challenge and bind the button.
    */
   var after_unlock = function() {
+    if ( ! db.is_encryption_key_set()) {
+      db.store_encryption_key(ta_crypto.generate_encryption_key(), password_key);
+    }
     encrypt_login();
     add_key_listener();
   };
@@ -155,7 +159,7 @@ utils.get_domain = function() {
     if (is_unlocked()) {
       log("generating new key pair...");
       generate_key_pair( function(keys) {
-        var encrypted_keys = ta_crypto.encrypt_keys(keys, get_password_key());
+        var encrypted_keys = ta_crypto.encrypt_keys(keys, get_encryption_key());
         db.store_cache_pair(encrypted_keys['public_key'], encrypted_keys['private_key']);
 
         if (after_creation) { after_creation(); }
@@ -192,7 +196,7 @@ utils.get_domain = function() {
       if (data['hash'] !== data['calculated_hash']) { log('There was an error verifying the integrity of the challenge message.'); return; }
       if (domain !== data['domain']) { log('Domain did not match.'); return; }
 
-      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(domain), get_password_key());
+      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(domain), get_encryption_key());
       var private_key = forge.pki.privateKeyFromPem(keys['private_key']);
 
       utils.get_doc().getElementById(TRUSTAUTH_RESPONSE_ID).value = pack_response({ 'response': data['challenge'], 'hash': data['hash'], 'domain': domain }, private_key);
@@ -224,6 +228,14 @@ utils.get_domain = function() {
     worker.postMessage({'key_length':key_length, 'exponent':exponent});
   };
 
+  var get_encryption_key = function() {
+    if (is_unlocked()) {
+      return encryption_key = (encryption_key === null) ? db.fetch_encryption_key(password_key) : encryption_key;
+    } else {
+      return null;
+    }
+  };
+
   var get_password_key = function() {
     return password_key;
   };
@@ -242,7 +254,7 @@ utils.get_domain = function() {
    */
   var insert_key = function() {
     if (is_unlocked()) {
-      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(utils.get_domain()), get_password_key());
+      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(utils.get_domain()), get_encryption_key());
       utils.get_doc().getElementById(TRUSTAUTH_KEY_ID).value = keys['public_key'];
     }
   };
@@ -284,10 +296,11 @@ utils.get_domain = function() {
       if (win.frameElement) {
         return;
       } else {
-
-        dump(unpack_data(utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
-        add_key_listener();
-        encrypt_login();
+        if (is_unlocked()) {
+          dump(unpack_data(utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
+          add_key_listener();
+          encrypt_login();
+        }
       }
     }
   };

@@ -39,6 +39,7 @@ var EXPORTED_SYMBOLS = [
   'CACHE_KEY_COUNT',
   'ITERATION_COUNT',
   'KEY_LENGTH',
+  'ENCRYPTION_KEY_LENGTH',
 ];
 
 var TRUSTAUTH_AJAX_LOADER = 'chrome://trustauth/skin/ajax-loader.gif';
@@ -67,3 +68,4 @@ var CACHE_KEY_COUNT = 2;
 var ITERATION_COUNT = 2048;
 
 var KEY_LENGTH = 32; // 256 bits
+var ENCRYPTION_KEY_LENGTH = 32; // 256 bits

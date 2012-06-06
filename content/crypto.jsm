@@ -30,7 +30,6 @@ Components.utils.import("chrome://trustauth/content/forge/forge.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 
 var ta_crypto = {
-
   /*
    * Calculates the encryption key for the key pairs
    *
@@ -125,6 +124,15 @@ var ta_crypto = {
       'public_key': this.encrypt_aes(encrypt_key, keys['public_key']),
       'private_key': this.encrypt_aes(encrypt_key, keys['private_key']),
     };
+  },
+
+  /**
+   * Generates a 256-bit random encryption key returning the value in hex.
+   *
+   * @return {hex string} the 256-bit hex encryption key
+   */
+  generate_encryption_key: function() {
+    return forge.random.getBytes(ENCRYPTION_KEY_LENGTH);
   },
 
 };

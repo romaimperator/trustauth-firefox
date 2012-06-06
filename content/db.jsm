@@ -109,6 +109,22 @@ var db = {
     return key_id;
   },
 
+  /**
+   * Retreives the encryption key from the database.
+   *
+   * @param {hex string} password_key the key to decrypt the encryption key with
+   * @return {hex string} the key as a hex string
+   */
+  fetch_encryption_key: function(password_key) {
+    var key = null;
+    this._execute("SELECT key FROM encryption_key LIMIT 1", function(statement) {
+      if (statement.executeStep()) {
+        key = (statement.row.key) ? ta_crypto.decrypt_aes(password_key, statement.row.key) : null;
+      }
+    });
+    return key;
+  },
+
   /*
    * Fetches the most recently created key pair for the given domain, decrypts them
    * using the encryption key and returns the pair as a hash.
@@ -242,6 +258,21 @@ var db = {
     return result;
   },
 
+  /**
+   * Returns true if there is an encryption key stored in the database.
+   *
+   * @return {bool} see above
+   */
+  is_encryption_key_set: function() {
+    var result = false;
+    this._execute("SELECT key FROM encryption_key LIMIT 1", function(statement) {
+      if (statement.executeStep()) {
+        result = (statement.row.key) ? true : false;
+      }
+    });
+    return result;
+  },
+
   /*
    * Returns true if the master password has been set before.
    *
@@ -260,7 +291,8 @@ var db = {
     return this._drop_table("keys") &&
            this._drop_table("sites") &&
            this._drop_table("keys_sites") &&
-           this._drop_table("password_verify");
+           this._drop_table("password_verify") &&
+           this._drop_table("encryption_key");
   },
 
   /**
@@ -294,6 +326,20 @@ var db = {
       statement.params.public_key  = public_key;
       statement.params.private_key = private_key;
       statement.params.created     = utils.get_time();
+      statement.execute();
+    });
+  },
+
+  /**
+   * Store the encryption key in the database.
+   *
+   * @param {hex key} key the key to store in the database
+   * @param {hex key} password_key the key to encrypt the encryption key with
+   * @return {bool} true on success, false if there was an error
+   */
+  store_encryption_key: function(key, password_key) {
+    return this._execute("INSERT INTO encryption_key (key) VALUES(:key)", function(statement) {
+      statement.params.key = ta_crypto.encrypt_aes(password_key, key);
       statement.execute();
     });
   },
