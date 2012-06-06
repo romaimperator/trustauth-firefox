@@ -191,11 +191,11 @@ var db = {
    * Returns a hash of the encryption key that is safe to store for
    * password verification.
    *
-   * @param encryption_key the key to get a storage hash of
+   * @param password_key the key to get a storage hash of
    * @return the hash of the key
    */
-  get_storage_hash: function(encryption_key) {
-    return utils.sha256(encryption_key + TRUSTAUTH_STORAGE_SALT);
+  get_storage_hash: function(password_key) {
+    return utils.sha256(password_key + TRUSTAUTH_STORAGE_SALT);
   },
 
   /**
@@ -221,6 +221,7 @@ var db = {
     this.manager.add_migration("Create sites table", this._create_table_migration("sites", { id: "INTEGER PRIMARY KEY", domain: "TEXT UNIQUE" }));
     this.manager.add_migration("Create key_sites table", this._create_table_migration("key_sites", { key_id: "NUMERIC", site_id: "NUMERIC" }));
     this.manager.add_migration("Create password_verify table", this._create_table_migration("password_verify", { hash: "TEXT" }));
+    this.manager.add_migration("Create encryption_key table", this._create_table_migration("encryption_key", { key: "TEXT" }));
     this.manager.migrate();
   },
 
@@ -302,7 +303,7 @@ var db = {
    *
    * @param key the key to store
    */
-  store_encryption_key: function(key) {
+  store_password_key: function(key) {
     var _this = this;
     if (! this.is_password_set()) {
       return this._execute("INSERT OR ABORT INTO password_verify (hash) VALUES(:hash)", function(statement) {

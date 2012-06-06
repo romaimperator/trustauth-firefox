@@ -38,7 +38,7 @@ var ta_crypto = {
    * @param salt the salt to use
    * @return the encryption key
    */
-  calculate_encryption_key: function(password, salt) {
+  calculate_password_key: function(password, salt) {
     var md = forge.md.sha256.create();
     return forge.util.bytesToHex(forge.pkcs5.pbkdf2(forge.util.hexToBytes(utils.encode_hex(password)), salt, ITERATION_COUNT, KEY_LENGTH, md));
   },

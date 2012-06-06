@@ -67,7 +67,7 @@ utils.get_domain = function() {
   var initialized = false;
   var disabled    = false;
 
-  var encryption_key = null;
+  var password_key = null;
 
 
 
@@ -155,7 +155,7 @@ utils.get_domain = function() {
     if (is_unlocked()) {
       log("generating new key pair...");
       generate_key_pair( function(keys) {
-        var encrypted_keys = ta_crypto.encrypt_keys(keys, get_encryption_key());
+        var encrypted_keys = ta_crypto.encrypt_keys(keys, get_password_key());
         db.store_cache_pair(encrypted_keys['public_key'], encrypted_keys['private_key']);
 
         if (after_creation) { after_creation(); }
@@ -192,7 +192,7 @@ utils.get_domain = function() {
       if (data['hash'] !== data['calculated_hash']) { log('There was an error verifying the integrity of the challenge message.'); return; }
       if (domain !== data['domain']) { log('Domain did not match.'); return; }
 
-      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(domain), get_encryption_key());
+      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(domain), get_password_key());
       var private_key = forge.pki.privateKeyFromPem(keys['private_key']);
 
       utils.get_doc().getElementById(TRUSTAUTH_RESPONSE_ID).value = pack_response({ 'response': data['challenge'], 'hash': data['hash'], 'domain': domain }, private_key);
@@ -224,8 +224,8 @@ utils.get_domain = function() {
     worker.postMessage({'key_length':key_length, 'exponent':exponent});
   };
 
-  var get_encryption_key = function() {
-    return encryption_key;
+  var get_password_key = function() {
+    return password_key;
   };
 
   /**
@@ -242,7 +242,7 @@ utils.get_domain = function() {
    */
   var insert_key = function() {
     if (is_unlocked()) {
-      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(utils.get_domain()), get_encryption_key());
+      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(utils.get_domain()), get_password_key());
       utils.get_doc().getElementById(TRUSTAUTH_KEY_ID).value = keys['public_key'];
     }
   };
@@ -253,7 +253,7 @@ utils.get_domain = function() {
    * @return boolean
    */
   var is_unlocked = function() {
-    return get_encryption_key() !== null;
+    return get_password_key() !== null;
   };
 
   /*
@@ -482,8 +482,8 @@ utils.get_domain = function() {
 
     prompts.promptPassword(null, message, null, password, null, checked);
     if (password.value !== null) {
-      encryption_key = ta_crypto.calculate_encryption_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
-      db.store_encryption_key(encryption_key);
+      password_key = ta_crypto.calculate_password_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
+      db.store_password_key(password_key);
     }
   };
 
@@ -503,7 +503,7 @@ utils.get_domain = function() {
       while ( ! verify_password(password.value)) {
         if ( ! prompts.promptPassword(null, "Incorrect master password", null, password, null, checked)) return false;
       }
-      encryption_key = ta_crypto.calculate_encryption_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
+      password_key = ta_crypto.calculate_password_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
       after_unlock();
       return true;
     }
@@ -528,7 +528,7 @@ utils.get_domain = function() {
   var verify_password = function(password) {
     var hash = db.get_stored_hash();
 
-    return (hash !== null && hash === db.get_storage_hash(ta_crypto.calculate_encryption_key(password, TRUSTAUTH_ENC_KEY_SALT)));
+    return (hash !== null && hash === db.get_storage_hash(ta_crypto.calculate_password_key(password, TRUSTAUTH_ENC_KEY_SALT)));
   };
 
   // Initialize the TrustAuth object
