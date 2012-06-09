@@ -62,11 +62,16 @@ utils.get_domain = function() {
   return utils.get_doc().domain;
 };
 
+SALTS['ENC_KEY'] = db.fetch_or_store_salt(SALT_IDS['ENC_KEY']);
+SALTS['STORAGE'] = db.fetch_or_store_salt(SALT_IDS['STORAGE']);
+SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
+
 (function() {
 
   var initialized = false;
   var disabled    = false;
 
+  var password_key   = null;
   var encryption_key = null;
 
 
@@ -118,6 +123,9 @@ utils.get_domain = function() {
    * Executes after the addon is unlocked. Used to encrypt the login challenge and bind the button.
    */
   var after_unlock = function() {
+    if ( ! db.is_encryption_key_set()) {
+      db.store_encryption_key(ta_crypto.generate_encryption_key(), password_key);
+    }
     encrypt_login();
     add_key_listener();
   };
@@ -137,14 +145,12 @@ utils.get_domain = function() {
       create_cache_pair(function() {
         key_id = db.fetch_cache_id();
         db.associate_key(key_id, site_id);
-        create_cache_pair();
+        replenish_cache();
         if (after_assign) { after_assign(); }
       });
     } else {
       db.associate_key(db.fetch_cache_id(), site_id);
-      if (db.count_cache_keys() < TRUSTAUTH_CACHE_KEY_SIZE) {
-        create_cache_pair();
-      }
+      replenish_cache();
     }
   };
 
@@ -227,7 +233,15 @@ utils.get_domain = function() {
   };
 
   var get_encryption_key = function() {
-    return encryption_key;
+    if (is_unlocked()) {
+      return encryption_key = (encryption_key === null) ? db.fetch_encryption_key(password_key) : encryption_key;
+    } else {
+      return null;
+    }
+  };
+
+  var get_password_key = function() {
+    return password_key;
   };
 
   /**
@@ -237,17 +251,6 @@ utils.get_domain = function() {
    */
   var get_login_form = function() {
     return utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).parentNode;
-  };
-
-  /*
-   * Returns a hash of the encryption key that is safe to store for
-   * password verification.
-   *
-   * @param encryption_key the key to get a storage hash of
-   * @return the hash of the key
-   */
-  var get_storage_hash = function(encryption_key) {
-    return utils.sha256(encryption_key + TRUSTAUTH_STORAGE_SALT);
   };
 
   /**
@@ -261,21 +264,12 @@ utils.get_domain = function() {
   };
 
   /*
-   * Returns true if the master password has been set before.
-   *
-   * @return boolean
-   */
-  var is_password_set = function() {
-    return db.get_stored_hash() !== null;
-  };
-
-  /*
    * Returns true if the master password has been entered to unlock the addon
    *
    * @return boolean
    */
   var is_unlocked = function() {
-    return get_encryption_key() !== null;
+    return get_password_key() !== null;
   };
 
   /*
@@ -306,10 +300,11 @@ utils.get_domain = function() {
       if (win.frameElement) {
         return;
       } else {
-
-        dump(unpack_data(utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
-        add_key_listener();
-        encrypt_login();
+        if (is_unlocked()) {
+          dump(unpack_data(utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
+          add_key_listener();
+          encrypt_login();
+        }
       }
     }
   };
@@ -427,6 +422,26 @@ utils.get_domain = function() {
     return pack_data(MESSAGE_TYPE['response'], data, key);
   };
 
+  /**
+   * If there is a password set, prompt for it. If not, ask to set one.
+   */
+  var prompt_or_set_new_password = function() {
+    if (db.is_password_set()) {
+      prompt_password();
+    } else {
+      prompt_new_password();
+    }
+  };
+
+  /**
+   * Creates new key pairs for the cache of keys until the CACHE_KEY_COUNT is reached.
+   */
+  var replenish_cache = function() {
+    if (db.count_cache_keys() < CACHE_KEY_COUNT) {
+      create_cache_pair(replenish_cache);
+    }
+  };
+
 
 
 /******************************/
@@ -438,7 +453,7 @@ utils.get_domain = function() {
    */
   var init_listener = function() {
     gBrowser.addEventListener("load", on_page_load, true);
-    document.getElementById('trustauth-menu-unlock').addEventListener("click", prompt_password, false);
+    document.getElementById('trustauth-menu-unlock').addEventListener("click", prompt_or_set_new_password, false);
   };
 
   /**
@@ -484,8 +499,8 @@ utils.get_domain = function() {
 
     prompts.promptPassword(null, message, null, password, null, checked);
     if (password.value !== null) {
-      encryption_key = ta_crypto.calculate_encryption_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
-      db.store_encryption_key(encryption_key);
+      password_key = ta_crypto.calculate_password_key(password.value, SALTS['PASSWORD']);
+      db.store_password_key(password_key);
     }
   };
 
@@ -505,7 +520,7 @@ utils.get_domain = function() {
       while ( ! verify_password(password.value)) {
         if ( ! prompts.promptPassword(null, "Incorrect master password", null, password, null, checked)) return false;
       }
-      encryption_key = ta_crypto.calculate_encryption_key(password.value, TRUSTAUTH_ENC_KEY_SALT);
+      password_key = ta_crypto.calculate_password_key(password.value, SALTS['PASSWORD']);
       after_unlock();
       return true;
     }
@@ -530,7 +545,7 @@ utils.get_domain = function() {
   var verify_password = function(password) {
     var hash = db.get_stored_hash();
 
-    return (hash !== null && hash === get_storage_hash(ta_crypto.calculate_encryption_key(password, TRUSTAUTH_ENC_KEY_SALT)));
+    return (hash !== null && hash === db.get_storage_hash(ta_crypto.calculate_password_key(password, SALTS['PASSWORD'])));
   };
 
   // Initialize the TrustAuth object

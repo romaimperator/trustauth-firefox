@@ -29,6 +29,7 @@ Components.utils.import("chrome://trustauth/content/utils.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 Components.utils.import("chrome://trustauth/content/crypto.jsm");
 Components.utils.import("chrome://trustauth/content/migrations.jsm");
+Components.utils.import("chrome://trustauth/content/forge/forge.jsm");
 
 var db = {
   version: null,
@@ -109,6 +110,22 @@ var db = {
     return key_id;
   },
 
+  /**
+   * Retreives the encryption key from the database.
+   *
+   * @param {hex string} password_key the key to decrypt the encryption key with
+   * @return {hex string} the key as a hex string
+   */
+  fetch_encryption_key: function(password_key) {
+    var key = null;
+    this._execute("SELECT key FROM encryption_key LIMIT 1", function(statement) {
+      if (statement.executeStep()) {
+        key = (statement.row.key) ? ta_crypto.decrypt_aes(password_key, statement.row.key) : null;
+      }
+    });
+    return key;
+  },
+
   /*
    * Fetches the most recently created key pair for the given domain, decrypts them
    * using the encryption key and returns the pair as a hash.
@@ -156,6 +173,29 @@ var db = {
   },
 
   /**
+   * Fetches the salt for the given type from the database. If one doesn't exist for this type, it will
+   * be randomly generated automatically.
+   *
+   * @param {integer} type the type of salt to fetch
+   * @return {hex string} the salt if found, null on an error
+   */
+  fetch_or_store_salt: function(type) {
+    var salt = null;
+    var _this = this;
+    this._execute("SELECT salt FROM salts WHERE type=:type", function(statement) {
+      statement.params.type = type;
+      if (statement.executeStep()) {
+        salt = (statement.row.salt) ? statement.row.salt : null;
+      }
+    });
+    if (salt === null) {
+      salt = forge.util.bytesToHex(forge.random.getBytes(SALT_LENGTH));
+      _this.store_salt(salt, type);
+    }
+    return salt;
+  },
+
+  /**
    * Retrieves the hash stored in the database.
    *
    * @return {string} the hash if there is one, null otherwise
@@ -187,6 +227,17 @@ var db = {
     return row_id;
   },
 
+  /*
+   * Returns a hash of the encryption key that is safe to store for
+   * password verification.
+   *
+   * @param password_key the key to get a storage hash of
+   * @return the hash of the key
+   */
+  get_storage_hash: function(password_key) {
+    return utils.sha256(password_key + SALTS['STORAGE']);
+  },
+
   /**
    * Returns the current database version number of the database. The version
    * is cached to avoid querying each call.
@@ -210,6 +261,23 @@ var db = {
     this.manager.add_migration("Create sites table", this._create_table_migration("sites", { id: "INTEGER PRIMARY KEY", domain: "TEXT UNIQUE" }));
     this.manager.add_migration("Create key_sites table", this._create_table_migration("key_sites", { key_id: "NUMERIC", site_id: "NUMERIC" }));
     this.manager.add_migration("Create password_verify table", this._create_table_migration("password_verify", { hash: "TEXT" }));
+    this.manager.add_migration("Create encryption_key table", this._create_table_migration("encryption_key", { key: "TEXT" }));
+    this.manager.add_migration("Create salts table", this._create_table_migration("salts", { salt: "TEXT UNIQUE", type: "INTEGER UNIQUE", "FOREIGN KEY (type)":"REFERENCES salt_types(id)" }));
+    this.manager.add_migration("Create salt_types table", this._create_table_migration("salt_types", { id: "INTEGER PRIMARY KEY", type: "TEXT" }));
+    this.manager.add_migration("Insert salt types", {
+      up: function(db) {
+        return db._execute("INSERT INTO salt_types (type) VALUES (:type)", function(statement) {
+          for (i in SALT_IDS) {
+            statement.params.type = i;
+            statement.execute();
+            statement.reset();
+          }
+        });
+      },
+      down: function(db) {
+        return db._execute("DELETE FROM salt_types");
+      },
+    });
     this.manager.migrate();
   },
 
@@ -231,6 +299,30 @@ var db = {
   },
 
   /**
+   * Returns true if there is an encryption key stored in the database.
+   *
+   * @return {bool} see above
+   */
+  is_encryption_key_set: function() {
+    var result = false;
+    this._execute("SELECT key FROM encryption_key LIMIT 1", function(statement) {
+      if (statement.executeStep()) {
+        result = (statement.row.key) ? true : false;
+      }
+    });
+    return result;
+  },
+
+  /*
+   * Returns true if the master password has been set before.
+   *
+   * @return boolean
+   */
+  is_password_set: function() {
+    return this.get_stored_hash() !== null;
+  },
+
+  /**
    * Resets the database to before any migrations were applied.
    *
    * @return {bool} true on success, false if there was an error
@@ -239,7 +331,10 @@ var db = {
     return this._drop_table("keys") &&
            this._drop_table("sites") &&
            this._drop_table("keys_sites") &&
-           this._drop_table("password_verify");
+           this._drop_table("password_verify") &&
+           this._drop_table("encryption_key") &&
+           this._drop_table("salts") &&
+           this._drop_table("salt_types");
   },
 
   /**
@@ -277,19 +372,49 @@ var db = {
     });
   },
 
+  /**
+   * Store the encryption key in the database.
+   *
+   * @param {hex key} key the key to store in the database
+   * @param {hex key} password_key the key to encrypt the encryption key with
+   * @return {bool} true on success, false if there was an error
+   */
+  store_encryption_key: function(key, password_key) {
+    return this._execute("INSERT INTO encryption_key (key) VALUES(:key)", function(statement) {
+      statement.params.key = ta_crypto.encrypt_aes(password_key, key);
+      statement.execute();
+    });
+  },
+
   /*
    * This function stores the key in the browser's password manager
    *
    * @param key the key to store
    */
-  store_encryption_key: function(key) {
-    if (! is_password_set()) {
+  store_password_key: function(key) {
+    var _this = this;
+    if (! this.is_password_set()) {
       return this._execute("INSERT OR ABORT INTO password_verify (hash) VALUES(:hash)", function(statement) {
-        statement.params.hash = this.get_storage_hash(key);
+        statement.params.hash = _this.get_storage_hash(key);
         statement.execute();
       });
     }
     return false;
+  },
+
+  /**
+   * Stores a salt into the database.
+   *
+   * @param {hex string} salt the salt to store
+   * @param {integer} type the id of the type of salt this is from the salt_types table
+   * @return {bool} true on success, false if there was an error
+   */
+  store_salt: function(salt, type) {
+    return this._execute("INSERT OR ABORT INTO salts (salt, type) VALUES (:salt, :type)", function(statement) {
+      statement.params.salt = salt;
+      statement.params.type = type;
+      statement.execute();
+    });
   },
 
   /**

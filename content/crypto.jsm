@@ -30,7 +30,6 @@ Components.utils.import("chrome://trustauth/content/forge/forge.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 
 var ta_crypto = {
-
   /*
    * Calculates the encryption key for the key pairs
    *
@@ -38,8 +37,9 @@ var ta_crypto = {
    * @param salt the salt to use
    * @return the encryption key
    */
-  calculate_encryption_key: function(password, salt) {
-    return utils.sha256(password + salt);
+  calculate_password_key: function(password, salt) {
+    var md = forge.md.sha256.create();
+    return forge.util.bytesToHex(forge.pkcs5.pbkdf2(forge.util.hexToBytes(utils.encode_hex(password)), salt, ITERATION_COUNT, KEY_LENGTH, md));
   },
 
   /*
@@ -61,7 +61,7 @@ var ta_crypto = {
    * @return the decrypted data
    */
   decrypt_aes: function(key, data) {
-    var cipher = forge.aes.startDecrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(TRUSTAUTH_ENC_KEY_SALT), null);
+    var cipher = forge.aes.startDecrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(SALTS['ENC_KEY']), null);
     cipher.update(forge.util.createBuffer(forge.util.hexToBytes(data)));
     cipher.finish();
     return utils.decode_hex(cipher.output.toHex());
@@ -103,7 +103,7 @@ var ta_crypto = {
    * @return the encrypted data
    */
   encrypt_aes: function(key, data) {
-    var cipher = forge.aes.startEncrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(TRUSTAUTH_ENC_KEY_SALT), null);
+    var cipher = forge.aes.startEncrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(SALTS['ENC_KEY']), null);
     cipher.update(forge.util.createBuffer(utils.encode_bytes(data)));
     cipher.finish();
     return cipher.output.toHex();
@@ -124,6 +124,15 @@ var ta_crypto = {
       'public_key': this.encrypt_aes(encrypt_key, keys['public_key']),
       'private_key': this.encrypt_aes(encrypt_key, keys['private_key']),
     };
+  },
+
+  /**
+   * Generates a 256-bit random encryption key returning the value in hex.
+   *
+   * @return {hex string} the 256-bit hex encryption key
+   */
+  generate_encryption_key: function() {
+    return forge.random.getBytes(ENCRYPTION_KEY_LENGTH);
   },
 
 };

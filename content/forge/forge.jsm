@@ -56,7 +56,9 @@ var forge_parts = [
     "chrome://trustauth/content/forge/prng.js",
     "chrome://trustauth/content/forge/random.js",
     "chrome://trustauth/content/forge/rsa.js",
-    "chrome://trustauth/content/forge/pki.js"
+    "chrome://trustauth/content/forge/pki.js",
+    "chrome://trustauth/content/forge/hmac.js",
+    "chrome://trustauth/content/forge/pbkdf2.js",
 ];
 
 for (i in forge_parts) {
