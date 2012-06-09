@@ -61,7 +61,7 @@ var ta_crypto = {
    * @return the decrypted data
    */
   decrypt_aes: function(key, data) {
-    var cipher = forge.aes.startDecrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(TRUSTAUTH_ENC_KEY_SALT), null);
+    var cipher = forge.aes.startDecrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(SALTS['ENC_KEY']), null);
     cipher.update(forge.util.createBuffer(forge.util.hexToBytes(data)));
     cipher.finish();
     return utils.decode_hex(cipher.output.toHex());
@@ -103,7 +103,7 @@ var ta_crypto = {
    * @return the encrypted data
    */
   encrypt_aes: function(key, data) {
-    var cipher = forge.aes.startEncrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(TRUSTAUTH_ENC_KEY_SALT), null);
+    var cipher = forge.aes.startEncrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(SALTS['ENC_KEY']), null);
     cipher.update(forge.util.createBuffer(utils.encode_bytes(data)));
     cipher.finish();
     return cipher.output.toHex();

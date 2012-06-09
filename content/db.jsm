@@ -29,6 +29,7 @@ Components.utils.import("chrome://trustauth/content/utils.jsm");
 Components.utils.import("chrome://trustauth/content/constants.jsm");
 Components.utils.import("chrome://trustauth/content/crypto.jsm");
 Components.utils.import("chrome://trustauth/content/migrations.jsm");
+Components.utils.import("chrome://trustauth/content/forge/forge.jsm");
 
 var db = {
   version: null,
@@ -172,6 +173,29 @@ var db = {
   },
 
   /**
+   * Fetches the salt for the given type from the database. If one doesn't exist for this type, it will
+   * be randomly generated automatically.
+   *
+   * @param {integer} type the type of salt to fetch
+   * @return {hex string} the salt if found, null on an error
+   */
+  fetch_or_store_salt: function(type) {
+    var salt = null;
+    var _this = this;
+    this._execute("SELECT salt FROM salts WHERE type=:type", function(statement) {
+      statement.params.type = type;
+      if (statement.executeStep()) {
+        salt = (statement.row.salt) ? statement.row.salt : null;
+      }
+    });
+    if (salt === null) {
+      salt = forge.util.bytesToHex(forge.random.getBytes(SALT_LENGTH));
+      _this.store_salt(salt, type);
+    }
+    return salt;
+  },
+
+  /**
    * Retrieves the hash stored in the database.
    *
    * @return {string} the hash if there is one, null otherwise
@@ -211,7 +235,7 @@ var db = {
    * @return the hash of the key
    */
   get_storage_hash: function(password_key) {
-    return utils.sha256(password_key + TRUSTAUTH_STORAGE_SALT);
+    return utils.sha256(password_key + SALTS['STORAGE']);
   },
 
   /**
@@ -238,6 +262,22 @@ var db = {
     this.manager.add_migration("Create key_sites table", this._create_table_migration("key_sites", { key_id: "NUMERIC", site_id: "NUMERIC" }));
     this.manager.add_migration("Create password_verify table", this._create_table_migration("password_verify", { hash: "TEXT" }));
     this.manager.add_migration("Create encryption_key table", this._create_table_migration("encryption_key", { key: "TEXT" }));
+    this.manager.add_migration("Create salts table", this._create_table_migration("salts", { salt: "TEXT UNIQUE", type: "INTEGER UNIQUE", "FOREIGN KEY (type)":"REFERENCES salt_types(id)" }));
+    this.manager.add_migration("Create salt_types table", this._create_table_migration("salt_types", { id: "INTEGER PRIMARY KEY", type: "TEXT" }));
+    this.manager.add_migration("Insert salt types", {
+      up: function(db) {
+        return db._execute("INSERT INTO salt_types (type) VALUES (:type)", function(statement) {
+          for (i in SALT_IDS) {
+            statement.params.type = i;
+            statement.execute();
+            statement.reset();
+          }
+        });
+      },
+      down: function(db) {
+        return db._execute("DELETE FROM salt_types");
+      },
+    });
     this.manager.migrate();
   },
 
@@ -292,7 +332,9 @@ var db = {
            this._drop_table("sites") &&
            this._drop_table("keys_sites") &&
            this._drop_table("password_verify") &&
-           this._drop_table("encryption_key");
+           this._drop_table("encryption_key") &&
+           this._drop_table("salts") &&
+           this._drop_table("salt_types");
   },
 
   /**
@@ -358,6 +400,21 @@ var db = {
       });
     }
     return false;
+  },
+
+  /**
+   * Stores a salt into the database.
+   *
+   * @param {hex string} salt the salt to store
+   * @param {integer} type the id of the type of salt this is from the salt_types table
+   * @return {bool} true on success, false if there was an error
+   */
+  store_salt: function(salt, type) {
+    return this._execute("INSERT OR ABORT INTO salts (salt, type) VALUES (:salt, :type)", function(statement) {
+      statement.params.salt = salt;
+      statement.params.type = type;
+      statement.execute();
+    });
   },
 
   /**
