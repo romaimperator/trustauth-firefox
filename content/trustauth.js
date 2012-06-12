@@ -114,6 +114,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     if ( ! db.is_encryption_key_set()) {
       db.store_encryption_key(ta_crypto.generate_encryption_key(), password_key);
     }
+    replenish_cache();
     encrypt_login();
     add_trustauth_key();
   };
