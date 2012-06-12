@@ -1,5 +1,5 @@
 /**
- * This is the main code for generating key pairs on a separate thread.
+ * These are the preference functions for the TrustAuth addon. This is browser specific code.
  *
  * @author Daniel Fox
  * @link trustauth.com
@@ -23,30 +23,35 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-var window = {};
-onmessage = function(event) {
-  importScripts(
-    "chrome://trustauth/content/forge/jsbn.js",
-    "chrome://trustauth/content/forge/util.js",
-    "chrome://trustauth/content/forge/aes.js",
-    "chrome://trustauth/content/forge/asn1.js",
-    "chrome://trustauth/content/forge/md5.js",
-    "chrome://trustauth/content/forge/sha1.js",
-    "chrome://trustauth/content/forge/sha256.js",
-    "chrome://trustauth/content/forge/oids.js",
-    "chrome://trustauth/content/forge/prng.js",
-    "chrome://trustauth/content/forge/random.js",
-    "chrome://trustauth/content/forge/rsa.js",
-    "chrome://trustauth/content/forge/pki.js"
-  );
+var EXPORTED_SYMBOLS = [ 'prefs' ];
 
-  var key_length = event.data['key_length'];
-  var exponent   = event.data['exponent'];
+  // Fetch the preferences for the addon
+var _prefs = Components.classes["@mozilla.org/preferences-service;1"]
+                    .getService(Components.interfaces.nsIPrefService).getBranch("extensions.trustauth.");
 
-  var keys = window.forge.pki.rsa.generateKeyPair(key_length, exponent);
+var prefs = {
 
-  keys['publicKey'] = window.forge.pki.publicKeyToPem(keys['publicKey']);
-  keys['privateKey'] = window.forge.pki.privateKeyToPem(keys['privateKey']);
+  get_b_pref: function(preference) {
+    return _prefs.getBoolPref(preference);
+  },
 
-  self.postMessage(keys);
-}
+  get_c_pref: function(preference) {
+    return _prefs.getCharPref(preference);
+  },
+
+  get_i_pref: function(preference) {
+    return _prefs.getIntPref(preference);
+  },
+
+  set_b_pref: function(preference, value) {
+    _prefs.setBoolPref(preference, value);
+  },
+
+  set_c_pref: function(preference, value) {
+    _prefs.setCharPref(preference, value);
+  },
+
+  set_i_pref: function(preference, value) {
+    _prefs.setIntPref(preference, value);
+  },
+};

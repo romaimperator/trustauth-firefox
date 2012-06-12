@@ -27,276 +27,186 @@
 
 if (typeof(window) !== "undefined") {
 
-window.TrustAuth = function() {
-  var RANDOM_LENGTH = 28; // in bytes
+Components.utils.import("chrome://trustauth/content/forge/forge.jsm");
+Components.utils.import("chrome://trustauth/content/utils.jsm");
+Components.utils.import("chrome://trustauth/content/crypto.jsm");
+Components.utils.import("chrome://trustauth/content/constants.jsm");
+Components.utils.import("chrome://trustauth/content/db.jsm");
+Components.utils.import("chrome://trustauth/content/prefs.jsm");
 
-  var SENDER_CLIENT = '0x434C4E54';
+/* These are the firefox specific utility functions that must be implemented. */
 
-  var TRUSTAUTH_ENC_KEY_SALT = '2EEC776BE2291D76E7C81706BD0E36C0C10D62A706ADB12D2799CA731503FBBA';
-  var TRUSTAUTH_STORAGE_SALT = '7CAB8505B677344B34B83C77B6A3EF527DC31FEFDF531B9F5F623DCE040A4351';
+/*
+ * Logs a message to the console as a TrustAuth message.
+ *
+ * @param message the message to log
+ */
+utils.log = function(message) {
+    var console = Components.classes['@mozilla.org/consoleservice;1'].
+              getService(Components.interfaces.nsIConsoleService);
+    console.logStringMessage('TrustAuth: ' + message);
+};
 
-  var TRUSTAUTH_AJAX_LOADER = 'chrome://trustauth/skin/ajax-loader.gif';
-  var TRUSTAUTH_BUTTON      = 'chrome://trustauth/skin/button.png';
-  var TRUSTAUTH_DISABLED    = 'chrome://trustauth/skin/button-disabled.png';
+/*
+ * Initializes the doc attribute with the document of the current page.
+ */
+utils.get_doc = function() {
+  return content.document;
+};
 
-  var STATUS = {
-      'auth':       0,
-      'auth_fail':  1,
-      'logged_in':  2,
-      'stage_fail': 3,
-  };
+/*
+ * Returns the domain of the current page.
+ * @return the current page's domain
+ */
+utils.get_domain = function() {
+  return utils.get_doc().domain;
+};
 
-  var TOKEN_NAME_CSS = "[name='csrf-param']";
-  var AUTH_TOKEN_CSS = "[name='csrf-token']";
+SALTS['ENC_KEY'] = db.fetch_or_store_salt(SALT_IDS['ENC_KEY']);
+SALTS['STORAGE'] = db.fetch_or_store_salt(SALT_IDS['STORAGE']);
+SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
+
+(function() {
 
   var initialized = false;
   var disabled    = false;
-  var prefs       = null;
 
+  var password_key   = null;
   var encryption_key = null;
 
-/*********************/
-/* Primary API calls */
-/*********************/
 
-    /*
-     * Authenticates this addon with the remote server.
-     */
-    var login = function () {
-      if ( ! disabled) {
-        if ( ! is_password_set()) {
-          prompt_new_password();
-        } else {
-          if (is_unlocked()) {
-            var domain = get_domain();
-
-            // Check to see if this domain already has a key
-            if (domain_exist(domain)) {
-              // Login if the user already has a key for this site
-              login_to_domain(domain);
-            } else {
-              // Create a new key and store it in the database for this domain
-              generate_key_pair(domain);
-              // Then login with the new pair
-              login_to_domain(domain);
-            }
-          } else {
-            if (prompt_password()) {
-              login();
-            }
-          }
-        }
-      }
-    };
 
 /*****************************/
 /* Pure Javascript functions */
 /*****************************/
-
-  /*
-   * Runs the ajax requests that authenticate the given key with the server.
-   *
-   * @param keys a hash of the public and private keys to use for encryption and decryption
-   * @return none
-   */
-  var authenticate = function(keys) {
-    // Fetch the URL to authenticate with from the page.
-    var auth_url      = get_auth_url();
-    var client_random = get_random();
-    var token_name    = jQuery(TOKEN_NAME_CSS, get_doc()).attr('content');
-    var auth_token    = jQuery(AUTH_TOKEN_CSS, get_doc()).attr('content');
-    //log(auth_token);
-    //log(auth_url);
-
-    var key_objects = {
-      'public_key': forge.pki.publicKeyFromPem(keys['public_key']),
-      'private_key': forge.pki.privateKeyFromPem(keys['private_key']),
-    };
-
-    // Send the public_key to the the url specified and listen for the encrypted pre_master_key
-    var params = { public_key: escape(keys['public_key']), random: client_random };
-    params[token_name] = auth_token;
-    jQuery.post(auth_url, params,
-      function(data) {
-          //log('first:' + JSON.stringify(data, null));
-          if (data['status'] === STATUS['stage_fail']) {
-              // The server says we were in the middle of a previous authentication so try again.
-              log(data['error']);
-              authenticate(keys);
-              return;
-          } else if (data['status'] === STATUS['auth']) {
-              auth_url = isset(data['auth_response_url']) ? data['auth_response_url'] : auth_url;
-              //log(auth_url);
-              //foam.log('secret: ' + data['secret']);
-              // Now that we have received the server response, decrypt the pre_master_key
-              var pre_master_secret = decrypt(key_objects['private_key'], data['secret']);
-              //foam.log('pre_master_secret: ' + pre_master_secret);
-              var server_random  = decrypt(key_objects['private_key'], data['random']);
-              //foam.log('user random: ' + client_random);
-              //foam.log('server random: ' + server_random);
-
-              // Now we need to generate the master secret
-              var master_secret = get_master_secret(pre_master_secret, client_random, server_random);
-              //foam.log('master_secret: ' + master_secret);
-
-              // Generate the validation hashes to return to the server
-              var transmitted_messages = client_random + master_secret + server_random;
-              //foam.log('transmitted_messages: ' + transmitted_messages);
-
-              var hashes = get_hashes(master_secret, client_random, server_random, transmitted_messages);
-              //foam.log('md5: ' + hashes['md5']);
-              //foam.log('sha: ' + hashes['sha']);
-              hashes['md5'] = encrypt(key_objects['private_key'], hashes['md5']);
-              hashes['sha'] = encrypt(key_objects['private_key'], hashes['sha']);
-              //foam.log('hashes: ' + JSON.stringify(hashes, null));
-              params = { md5: hashes['md5'], sha: hashes['sha'] }
-              params[token_name] = auth_token;
-              jQuery.post(auth_url, params,
-                function(data) {
-                    //log('second:' + JSON.stringify(data, null));
-                    if (data['status'] === STATUS['auth_fail']) {
-                        log(data['error']);
-                    } else if (data['status'] === STATUS['logged_in']) {
-                        log('login successful');
-                    }
-                    //log('redirect url: ' + data['url']);
-                    openUILinkIn(data['url'], 'current');
-              }, 'json').fail(output_fail);
-          } else {
-              log('Status not supported: ' + data['status']);
-          }
-    }, 'json').fail(output_fail);
+  var log = function(message) {
+    utils.log(message);
   };
 
-  /*
-   * Calculates the encryption key for the key pairs
-   *
-   * @param password the password to use
-   * @return the encryption key
+  /**
+   * This function is called to bind a click listener to the Add TrustAuth Key button.
    */
-  var calculate_encryption_key = function(password) {
-    return sha256(password + TRUSTAUTH_ENC_KEY_SALT);
+  var add_key_listener = function() {
+    if (is_unlocked()) {
+      var add_key_button = utils.get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
+      if (add_key_button) {
+        add_key_button.addEventListener("click", add_trustauth_key, true);
+      }
+    }
   };
 
-  /*
-   * Checks to see if the site supports TrustAuth. It enables the addon if it
-   * does and disables the addon if it doesn't.
+  /**
+   * This function injects the public key into a hidden form field with an ID of
+   * "trustauth-key" whenever the Add TrustAuth Key button is clicked.
    */
-  var check_page = function() {
-      if (typeof(get_auth_url()) != "undefined") {
-        enable();
+  var add_trustauth_key = function() {
+    if (is_unlocked()) {
+      var register_element = utils.get_doc().getElementById(TRUSTAUTH_KEY_ID);
+
+      utils.disable_child_submit(register_element.parentNode);
+
+      var domain = utils.get_domain();
+      if (db.domain_exist(domain)) {
+        log("inserting key...");
+        insert_key();
+        utils.enable_child_submit(register_element.parentNode);
       } else {
-        disable();
+        assign_pair_and_replace(domain, function() {
+          insert_key();
+          utils.enable_child_submit(register_element.parentNode);
+        });
       }
-  };
-
-  /*
-   * Decodes an string from bytes
-   *
-   * @param bytes the bytes to decode
-   * @return the decoded string
-   */
-  var decode_bytes = function(bytes) {
-    return decode_hex(forge.util.bytesToHex(bytes));
-  };
-
-  /*
-   * Decodes an string from hex
-   *
-   * @param hex the hex string to decode
-   * @return the decoded string
-   */
-  var decode_hex = function(hex) {
-    var retval = '';
-    var i = 0;
-
-    for(; i < hex.length; i+= 2) {
-      retval += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
     }
-    return retval;
   };
 
-  /*
-   * Decrypts the hex data with the key.
-   *
-   * @param key the decryption key as forge key object
-   * @param the encrypted data in hex
-   * @return the plaintext data
+  /**
+   * Executes after the addon is unlocked. Used to encrypt the login challenge and bind the button.
    */
-  var decrypt = function(key, data) {
-    return key.decrypt(forge.util.hexToBytes(data));
+  var after_unlock = function() {
+    if ( ! db.is_encryption_key_set()) {
+      db.store_encryption_key(ta_crypto.generate_encryption_key(), password_key);
+    }
+    encrypt_login();
+    add_key_listener();
   };
 
-  /*
-   * Decrypts the hex data using the key and AES.
+  /**
+   * Associates a cache key with the domain and generates a replacement key.
    *
-   * @param key the decryption key as a hex string
-   * @param the data in hex
-   * @return the decrypted data
+   * @param {string} domain the domain to assign a key to
+   * @param {function} after_assign an optional function to execute after a key pair is assigned to domain
+   * @return {bool} true on success; false otherwise
    */
-  var decrypt_aes = function(key, data) {
-    var cipher = forge.aes.startDecrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(TRUSTAUTH_ENC_KEY_SALT), null);
-    cipher.update(forge.util.createBuffer(forge.util.hexToBytes(data)));
-    cipher.finish();
-    return decode_hex(cipher.output.toHex());
+  var assign_pair_and_replace = function(domain, after_assign) {
+    var site_id = db.fetch_or_store_domain(domain);
+    var key_id = db.fetch_cache_id();
+    if (key_id === null) {
+      // No cached key exists so generate one
+      create_cache_pair(function() {
+        key_id = db.fetch_cache_id();
+        db.associate_key(key_id, site_id);
+        replenish_cache();
+        if (after_assign) { after_assign(); }
+      });
+    } else {
+      db.associate_key(db.fetch_cache_id(), site_id);
+      replenish_cache();
+    }
   };
 
-  /*
-   * Encodes a unicode string as hex
+  /**
+   * Generates a key in background and stores it in the database as a backup key.
    *
-   * @param string the string to convert
-   * @return the hex encoded string
+   * @param {function} after_creation optional function to call after the keys have been stored in the database
    */
-  var encode_bytes = function(string) {
-    return forge.util.hexToBytes(encode_hex(string));
-  };
+  var create_cache_pair = function(after_creation) {
+    if (is_unlocked()) {
+      log("generating new key pair...");
+      generate_key_pair( function(keys) {
+        var encrypted_keys = ta_crypto.encrypt_keys(keys, get_encryption_key());
+        db.store_cache_pair(encrypted_keys['public_key'], encrypted_keys['private_key']);
 
-  /*
-   * Encodes an ASCII string as hex
-   *
-   * @param string the string to convert
-   * @return the hex encoded string
-   */
-  var encode_hex = function(string) {
-    var retval = '';
-    var i = 0;
-    var tmp = '';
-
-    for(; i < string.length; i++) {
-      tmp = string.charCodeAt(i).toString(16);
-      if (tmp.length === 1) {
-        tmp = '0' + tmp;
-      } else if (tmp.length !== 2) {
-        log('encode of: ' + string + ' produced character length of: ' + tmp.length + ' at character: ' + i);
+        if (after_creation) { after_creation(); }
+        log("finished generating key pair");
+      });
+    } else {
+      if (prompt_password()) {
+        create_cache_key();
       }
-      retval += tmp;
     }
-    return retval;
   };
 
-  /*
-   * Encrypts the hex data with the key.
+  /**
+   * This function is called whenever a page is loaded and has an element with
+   * and ID of "trustauth-challenge". If there is a key already generated for this
+   * site then the key is used to encrypt the random value in this field.
    *
-   * @param key the encryption key as forge key object
-   * @param the data in hex
-   * @return the encrypted data
+   * If there is not a key for this site then this function does nothing.
    */
-  var encrypt = function(key, data) {
-    return forge.util.bytesToHex(key.encrypt(forge.util.hexToBytes(data)));
-  };
+  var encrypt_login = function() {
+    if (is_unlocked()) {
 
-  /*
-   * Encrypts the hex data using the key and AES.
-   *
-   * @param key the encryption key as a hex string
-   * @param the data in hex
-   * @return the encrypted data
-   */
-  var encrypt_aes = function(key, data) {
-    var cipher = forge.aes.startEncrypting(forge.util.createBuffer(forge.util.hexToBytes(key)), forge.util.createBuffer(TRUSTAUTH_ENC_KEY_SALT), null);
-    cipher.update(forge.util.createBuffer(encode_bytes(data)));
-    cipher.finish();
-    return cipher.output.toHex();
+      var challenge_element = utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID);
+
+      if ( ! challenge_element) { log("Could not find the challenge element."); return; }
+
+      var domain = utils.get_form_hostname(get_login_form());
+
+      if ( ! db.domain_exist(domain)) { log("No key for this domain."); set_button_image(TRUSTAUTH_BUTTON); return; }
+
+      utils.disable_child_submit(challenge_element.parentNode);
+      var data = unpack_data(challenge_element.value);
+
+      if (data['time'] + TIMEOUT < utils.get_time()) { log('The challenge has expired. Refresh the page to get a new challenge.'); return; }
+      if (data['hash'] !== data['calculated_hash']) { log('There was an error verifying the integrity of the challenge message.'); return; }
+      if (domain !== data['domain']) { log('Domain did not match.'); return; }
+
+      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(domain), get_encryption_key());
+      var private_key = forge.pki.privateKeyFromPem(keys['private_key']);
+
+      utils.get_doc().getElementById(TRUSTAUTH_RESPONSE_ID).value = pack_response({ 'response': data['challenge'], 'hash': data['hash'], 'domain': domain }, private_key);
+      utils.enable_child_submit(challenge_element.parentNode);
+    }
   };
 
   /*
@@ -305,136 +215,53 @@ window.TrustAuth = function() {
    *
    * @param domain the domain this key pair is for
    */
-  var generate_key_pair = function(domain) {
+  var generate_key_pair = function(handle_keys) {
     // Retreive the key length and exponent values
-    var key_length = get_i_pref("key_length");
-    var exponent   = get_i_pref("exponent");
+    var key_length = prefs.get_i_pref("key_length");
+    var exponent   = prefs.get_i_pref("exponent");
 
     var worker = new Worker('chrome://trustauth/content/generate_key_pair.js');
     worker.onerror   = function(event) {
-      log('error: ' + event.message);
+      log('generate error: ' + event.message);
     };
     worker.onmessage = function(event) {
-      var keys = {
-        'publicKey':  forge.pki.publicKeyFromPem(event.data['publicKey']),
-        'privateKey': forge.pki.privateKeyFromPem(event.data['privateKey']),
-      };
-
-      var encryption_key = get_encryption_key();
-      var encrypted_keys = {
-        'publicKey': encrypt_aes(encryption_key, forge.pki.publicKeyToPem(keys['publicKey'])),
-        'privateKey': encrypt_aes(encryption_key, forge.pki.privateKeyToPem(keys['privateKey'])),
-      };
-
-      store_key_pair(domain, encrypted_keys['publicKey'], encrypted_keys['privateKey']);
-      login_to_domain(domain);
-      set_button_image(TRUSTAUTH_BUTTON);
+      handle_keys({
+        'public_key':  event.data['publicKey'],
+        'private_key': event.data['privateKey'],
+      });
     };
     worker.postMessage({'key_length':key_length, 'exponent':exponent});
-    set_button_image(TRUSTAUTH_AJAX_LOADER);
-  };
-
-  /*
-   * Generates the padding required for calculating the hashes and is used for authentication.
-   *
-   * @return array of the 4 padding values
-   */
-  var generate_padding = function() {
-    var pad1_md5 = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x36), 48));
-    var pad2_md5 = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x5c), 48));
-    var pad1_sha = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x36), 40));
-    var pad2_sha = forge.util.bytesToHex(forge.util.fillString(String.fromCharCode(0x5c), 40));
-    return { md5: { pad1: pad1_md5, pad2: pad2_md5 },
-             sha: { pad1: pad1_sha, pad2: pad2_sha }};
-  };
-
-  /*
-   * Returns the authentication url from the webpage if it exists.
-   */
-  var get_auth_url = function() {
-    //var auth_ele = jQuery('input:hidden#foamicate_url', get_doc());
-    var auth_ele = jQuery("meta[name='trustauth']", get_doc());
-    if (typeof(auth_ele) != "undefined") {
-      return 'http://' + get_domain() + auth_ele.attr('content');
-    } else {
-      return auth_ele;
-    }
   };
 
   var get_encryption_key = function() {
-    return encryption_key;
+    if (is_unlocked()) {
+      return encryption_key = (encryption_key === null) ? db.fetch_encryption_key(password_key) : encryption_key;
+    } else {
+      return null;
+    }
   };
 
-  /*
-   * Generates the hashes to respond to the server with.
-   *
-   * @param master_secret the master_secret to use
-   * @param client_random the client's random value
-   * @param server_random the server's random value
-   * @param transmitted_messages the values that have been sent so far
-   * @return array with the md5 and sha hashes
-   */
-  var get_hashes = function(master_secret, client_random, server_random, transmitted_messages) {
-    var padding = generate_padding();
-    var md5_hash = md5(master_secret + padding['md5']['pad2'] + md5(transmitted_messages + SENDER_CLIENT + master_secret + padding['md5']['pad1']));
-    var sha_hash = sha1(master_secret + padding['sha']['pad2'] + sha1(transmitted_messages + SENDER_CLIENT + master_secret + padding['sha']['pad1']));
-    return { md5: md5_hash, sha: sha_hash };
+  var get_password_key = function() {
+    return password_key;
   };
 
-  /*
-   * Returns the master key.
+  /**
+   * Returns the form element containing the TrustAuth challenge element.
    *
-   * @param pre_master_secret the pre_master_secret to use
-   * @param client_random the client's random value
-   * @param server_random the server's random value
-   * @return the master_secret
+   * @return {HTMLNode} the login form element
    */
-  var get_master_secret = function(pre_master_secret, client_random, server_random) {
-    return md5(pre_master_secret + sha1('A' + pre_master_secret + client_random + server_random)) +
-           md5(pre_master_secret + sha1('BB' + pre_master_secret + client_random + server_random)) +
-           md5(pre_master_secret + sha1('CCC' + pre_master_secret + client_random + server_random));
+  var get_login_form = function() {
+    return utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).parentNode;
   };
 
-  /*
-   * Returns a hash of the encryption key that is safe to store for
-   * password verification.
-   *
-   * @param encryption_key the key to get a storage hash of
-   * @return the hash of the key
+  /**
+   * Inserts the key for the current domain into the "trustauth-key" field.
    */
-  var get_storage_hash = function(encryption_key) {
-    return sha256(encryption_key + TRUSTAUTH_STORAGE_SALT);
-  };
-
-  /*
-   * Generate random data for the authentication process
-   *
-   * @return hex string of random data
-   */
-  var get_random = function() {
-      var byte_buffer = forge.util.createBuffer();
-      byte_buffer.putInt32((new Date()).getTime());
-      byte_buffer.putBytes(forge.random.getBytes(RANDOM_LENGTH));
-      return byte_buffer.toHex();
-  };
-
-  /*
-   * Checks to see if the variable is set.
-   *
-   * @param variable the variable to check
-   * @return true if it is, false otherwise
-   */
-  var isset = function(variable) {
-      return typeof(variable) != "undefined" && variable !== null;
-  };
-
-  /*
-   * Returns true if the master password has been set before.
-   *
-   * @return boolean
-   */
-  var is_password_set = function() {
-    return get_stored_hash() !== null;
+  var insert_key = function() {
+    if (is_unlocked()) {
+      var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(utils.get_domain()), get_encryption_key());
+      utils.get_doc().getElementById(TRUSTAUTH_KEY_ID).value = keys['public_key'];
+    }
   };
 
   /*
@@ -443,24 +270,7 @@ window.TrustAuth = function() {
    * @return boolean
    */
   var is_unlocked = function() {
-    return get_encryption_key() !== null;
-  };
-
-  /*
-   * The main function used to login to the website. It fetches the key pair and
-   * uses them to login to the website.
-   *
-   * The login is handled asynchronously.
-   *
-   * @param domain the domain of the page to login to
-   */
-  var login_to_domain = function(domain) {
-    var decrypted_keys = fetch_key_pair(domain)
-    if (decrypted_keys !== null) {
-      authenticate(decrypted_keys);
-    } else {
-      log('error fetching keys');
-    }
+    return get_password_key() !== null;
   };
 
   /*
@@ -470,13 +280,12 @@ window.TrustAuth = function() {
     // initialization code
     initialized = true;
 
-    init_pref();
-    init_db();
+    db.init();
     init_listener();
     set_button_image(TRUSTAUTH_BUTTON);
 
-    if (get_b_pref('first_run')) {
-      set_b_pref('first_run', false);
+    if (prefs.get_b_pref('first_run')) {
+      prefs.set_b_pref('first_run', false);
       install_button("nav-bar", "trustauth-main-button");
       // The "addon-bar" is available since Firefox 4
       install_button("addon-bar", "trustauth-main-button");
@@ -492,19 +301,147 @@ window.TrustAuth = function() {
       if (win.frameElement) {
         return;
       } else {
-        check_page();
+        if (is_unlocked()) {
+          utils.dump(unpack_data(utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
+          add_key_listener();
+          encrypt_login();
+        }
       }
     }
   };
 
-  /*
-   * Outputs the error mesasge if the post request failed.
+  /**
+   * This function packs the data into a hex string of data in the format for TrustAuth. The type
+   * specifies which type of message this is. The data is a hash of data required for the format.
+   *
+   * Currently there are two formats supported:
+   *   challenge => {
+   *     'version'  : hash of the version number of 'major', 'minor', and 'patch' keys
+   *     'type'     : the type of message this is,
+   *     'time'     : the unix time in seconds since the epoch this challenge was created,
+   *     'challenge': the random value generated by the server,
+   *     'domain'   : the domain name given by the server,
+   *     'hash'     : the sha-256 HMAC of the challenge message minus this hash,
+   *   }
+   *
+   *   response => {
+   *     'version'    : hash of the version number of 'major', 'minor', and 'patch' keys
+   *     'type'       : the type of message this is,
+   *     'time'       : the current unix time in seconds since the epoch,
+   *     'challenge'  : the random value given by the server as the challenge,
+   *     'domain'     : domain name of the site,
+   *     'server_hash': the hash from the challenge message,
+   *     'hash'       : the hash of this message encrypted with the private key for the site,
+   *   }
+   *
+   * @param {enum} type the type of message to pack
+   * @param {hash} data the data required for the message type
+   * @param {forge key object}
+   * @return {string} a hex string of the packed data
    */
-  var output_fail = function(msg, textStatus, errorThrown) {
-    log(msg.status + ";" + msg.statusText + ";" + msg.responseXML);
+  var pack_data = function(type, data, key) {
+    var b = forge.util.createBuffer();
+    if (type === MESSAGE_TYPE['response']) {
+      b.putByte(1);
+      b.putByte(0);
+      b.putByte(0);
+      b.putByte(type);
+      b.putBytes(forge.util.hexToBytes(utils.pad_front(data['time'].toString(16), 8, '0')));
+      var encoded_response = utils.encode_bytes(data['response']);
+      var encoded_domain   = utils.encode_bytes(data['domain']);
+      b.putInt16(encoded_response.length);
+      b.putInt16(encoded_domain.length);
+      b.putBytes(encoded_response);
+      b.putBytes(encoded_domain);
+      b.putBytes(forge.util.hexToBytes(data['hash']));
+      var encrypted_hash = ta_crypto.encrypt(key, utils.sha256(b.toHex()));
+      b.putInt16(encrypted_hash.length);
+      b.putBytes(forge.util.hexToBytes(encrypted_hash));
+      return b.toHex();
+    } else {
+      log("Unrecognized message type: " + type);
+    }
   };
 
+  /**
+   * See pack_data
+   *
+   * @param {hex string} data the trustauth message to unpack
+   * @return {hash} the unpacked data as a hash
+   */
+  var unpack_data = function(data) {
+    var b = forge.util.createBuffer(forge.util.hexToBytes(data));
+    var hash_buf = b.copy();
+    hash_buf.truncate(HASH_LENGTH);
 
+    var version = {
+      'major': b.getByte(),
+      'minor': b.getByte(),
+      'patch': b.getByte(),
+    };
+    if (version.major != 1 || version.minor != 0 || version.patch != 0) {
+      log("Unsupported protocol version: " + version.major + "." + version.minor + "." + version.patch);
+      return null;
+    }
+    var type = b.getByte();
+    if (type === MESSAGE_TYPE['challenge']) {
+      var meta = {
+        'time'            : b.getInt32(),
+        'challenge_length': b.getInt16(),
+        'domain_length'   : b.getInt16(),
+      };
+      return {
+        'version'  : version,
+        'type'     : type,
+        'time'     : meta['time'],
+        'challenge': utils.decode_bytes(b.getBytes(meta['challenge_length'])),
+        'domain'   : utils.decode_bytes(b.getBytes(meta['domain_length'])),
+        'hash'     : forge.util.bytesToHex(b.getBytes(HASH_LENGTH)),
+        'calculated_hash': utils.sha256(hash_buf.toHex()),
+      };
+    } else {
+      log("Unrecognized message type: " + type);
+      return null;
+    }
+  };
+
+  /**
+   * Packs a response message given the following data and a Forge Key object.
+   *
+   * data = {
+   *   'response' => the challenge from the challenge message
+   *   'hash'     => the message hash from the challenge message
+   *   'domain'   => the domain the login form's action submits to
+   * }
+   *
+   * @param {hash} data the data to pack
+   * @param {forge key object} key the key to use for encryption
+   * @return {hex string} the packed response
+   */
+  var pack_response = function(data, key) {
+    data.time = utils.get_time();
+    return pack_data(MESSAGE_TYPE['response'], data, key);
+  };
+
+  /**
+   * If there is a password set, prompt for it. If not, ask to set one.
+   */
+  var prompt_or_set_new_password = function() {
+    if (db.is_password_set()) {
+      prompt_password();
+    } else {
+      prompt_new_password();
+    }
+  };
+
+  /**
+   * Creates new key pairs for the cache of keys until the CACHE_KEY_COUNT is reached.
+   */
+  var replenish_cache = function() {
+    if (db.count_cache_keys() < CACHE_KEY_COUNT) {
+      create_cache_pair(replenish_cache);
+    }
+  };
 
 
 
@@ -513,260 +450,11 @@ window.TrustAuth = function() {
 /******************************/
 
   /*
-   * Connects to the database.
-   */
-  var db_connect = function() {
-    Components.utils.import("resource://gre/modules/Services.jsm");
-    Components.utils.import("resource://gre/modules/FileUtils.jsm");
-
-    // Establish a connection to the database
-    var file = FileUtils.getFile("ProfD", ["trustauth", "trustauth.sqlite"]);
-    var file_exists = file.exists();
-    return Services.storage.openDatabase(file);
-  };
-
-  /*
-   * Disables the addon and grays out the button and text.
-   */
-  var disable = function() {
-    disabled = true;
-    set_button_image(TRUSTAUTH_DISABLED);
-    jQuery('#trustauth-menu-login', document).addClass('trustauth-disabled');
-  };
-
-  /*
-   * Checks to see if the given domain has a key in the database
-   *
-   * @param domain the domain to look for
-   * @return true if the domain is in the database false otherwise
-   */
-  var domain_exist = function(domain) {
-    var db = db_connect();
-
-    try {
-      // Create the statement to fetch the most recently created key for this domain
-      var statement = db.createStatement("SELECT domain FROM keys, sites, keys_sites WHERE keys.id=keys_sites.key_id AND sites.id=keys_sites.site_id AND sites.domain=:domain ORDER BY keys.created DESC");
-
-      // Bind the parameter
-      statement.params.domain = domain;
-
-      var domain_exists = false;
-      // Execute the query synchronously
-      if (statement.executeStep()) {
-        domain_exists = true;
-      }
-    } catch (ex) {
-      dump(ex);
-      log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-    }
-
-    db.close();
-    return domain_exists;
-  };
-
-  /*
-   * A debugging function used to try and dump an object to the log
-   *
-   * @param obj the object to dump
-   */
-  var dump = function(obj) {
-    var out = '';
-    for (var i in obj) {
-        out += i + ": " + obj[i] + "\n";
-    }
-
-    log(out);
-  };
-
-  /*
-   * Disables the addon and grays out the button and text.
-   */
-  var enable = function() {
-    disabled = false;
-    set_button_image(TRUSTAUTH_BUTTON);
-    jQuery('#trustauth-menu-login', document).removeClass('trustauth-disabled');
-  };
-
-  /*
-   * Fetches the most recently created key pair for the given domain, decrypts them
-   * using the encryption key and returns the pair as a hash.
-   *
-   * @param domain the domain to fetch keys for
-   * @return hash of the public and private key pair or null if the domain doesn't have a key pair
-   */
-  var fetch_key_pair = function(domain) {
-    var db = db_connect();
-
-    var key_pair = null;
-    try {
-      var statement = db.createStatement("SELECT public_key, private_key FROM keys as k, sites as s, keys_sites as ks WHERE k.id=ks.key_id AND s.id=ks.site_id AND s.domain=:domain ORDER BY k.created DESC");
-
-      // Bind the parameter
-      statement.params.domain = domain;
-
-      // Execute the query synchronously
-      if (statement.executeStep()) {
-        var encryption_key = get_encryption_key();
-        key_pair = {
-          'public_key': decrypt_aes(encryption_key, statement.row.public_key),
-          'private_key': decrypt_aes(encryption_key, statement.row.private_key),
-        };
-      }
-    } catch (ex) {
-      dump(ex);
-      log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-    }
-
-    db.close();
-    return key_pair;
-  };
-
-  var get_b_pref = function(preference) {
-      return prefs.getBoolPref(preference);
-  };
-
-  var get_c_pref = function(preference) {
-      return prefs.getCharPref(preference);
-  };
-
-  /*
-   * Initializes the doc attribute with the document of the current page.
-   */
-  var get_doc = function() {
-    return content.document;
-  };
-
-  /*
-   * Returns the domain of the current page.
-   * @return the current page's domain
-   */
-  var get_domain = function() {
-    return get_doc().domain;
-  };
-
-  var get_i_pref = function(preference) {
-      return prefs.getIntPref(preference);
-  };
-
-  /**
-   * Retrieves the hash stored in the database.
-   *
-   * @return {string} the hash if there is one, null otherwise
-   */
-  var get_stored_hash = function() {
-    var db = db_connect();
-
-    var hash = null;
-    try {
-      var statement = db.createStatement("SELECT hash FROM password_verify LIMIT 1");
-
-      if (statement.executeStep()) {
-        hash = statement.row.hash;
-        log('hash: ' + hash);
-      }
-    } catch(ex) {
-      dump(ex);
-      log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-      db.close();
-    }
-
-    return hash;
-  };
-
-  /*
-   * Returns the site_id for the domain or null if the domain wasn't found.
-   *
-   * @param domain the domain to get the site_id for
-   * @return the site_id
-   */
-  var get_site_id = function(domain) {
-    var db = db_connect();
-
-    var row_id = null;
-    try {
-      var statement = db.createStatement("SELECT id FROM sites WHERE domain=:domain");
-      statement.params.domain = domain;
-      if (statement.executeStep()) {
-        row_id = statement.row.id;
-      }
-    } catch (ex) {
-      dump(ex);
-      log(db.lastErrorString);
-    } finally {
-      statement.finalize();
-    }
-
-    db.close();
-    return row_id;
-  };
-
-  /*
-   * The abstract function to use the firefox object to calculate the hash
-   * using the browser function instead of a javascript function.
-   *
-   * @param ch the crypto hash object initalized to the correct hash function
-   * @param string the string to hash
-   * @return the calculated hash
-   */
-  var hash = function(ch, string) {
-    var converter = Components.classes["@mozilla.org/intl/scriptableunicodeconverter"]
-                    .createInstance(Components.interfaces.nsIScriptableUnicodeConverter);
-    // Set the UTF-8 encoding
-    converter.charset = "ASCII";
-
-    // result is an out parameter,
-    // result.value will contain the array length
-    var result = {};
-
-    // data is an array of bytes
-    var data = converter.convertToByteArray(string, result);
-
-    ch.update(data, data.length);
-
-    var hash = ch.finish(false);
-
-    // return the two-digit hexadecimal code for a byte
-    function toHexString(charCode)
-    {
-      return ("0" + charCode.toString(16)).slice(-2);
-    };
-
-    // convert the binary hash data to a hex string.
-    return [toHexString(hash.charCodeAt(i)) for (i in hash)].join("");
-  };
-
-  /*
-   * Initializes the place to store the public and private key pairs.
-   */
-  var init_db = function() {
-    var db = db_connect();
-
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys (id INTEGER PRIMARY KEY, public_key TEXT, private_key TEXT, created TEXT)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS sites (id INTEGER PRIMARY KEY, domain TEXT UNIQUE)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS keys_sites (key_id NUMERIC, site_id NUMERIC)");
-    db.executeSimpleSQL("CREATE TABLE IF NOT EXISTS password_verify (hash TEXT)");
-
-    db.close();
-  };
-
-  /*
    * Initializes the javascript listeners for the buttons on the preference page.
    */
   var init_listener = function() {
-    gBrowser.tabContainer.addEventListener("TabAttrModified", tab_modified, false);
-    document.getElementById('trustauth-menu-login').addEventListener("click", login, false);
-  };
-
-  // Fetch the preferences for the addon
-  var init_pref = function() {
-    prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                    .getService(Components.interfaces.nsIPrefService).getBranch("extensions.trustauth.");
+    gBrowser.addEventListener("load", on_page_load, true);
+    document.getElementById('trustauth-menu-unlock').addEventListener("click", prompt_or_set_new_password, false);
   };
 
   /**
@@ -778,49 +466,24 @@ window.TrustAuth = function() {
    * @param {string} afterId The ID of the element to insert after. @optional
    */
   var install_button = function(toolbarId, id, afterId) {
-      if (!document.getElementById(id)) {
-          var toolbar = document.getElementById(toolbarId);
+    if (!document.getElementById(id)) {
+      var toolbar = document.getElementById(toolbarId);
 
-          // If no afterId is given, then append the item to the toolbar
-          var before = null;
-          if (afterId) {
-              let elem = document.getElementById(afterId);
-              if (elem && elem.parentNode == toolbar)
-                  before = elem.nextElementSibling;
-          }
-
-          toolbar.insertItem(id, before);
-          toolbar.setAttribute("currentset", toolbar.currentSet);
-          document.persist(toolbar.id, "currentset");
-
-          if (toolbarId == "addon-bar")
-              toolbar.collapsed = false;
+      // If no afterId is given, then append the item to the toolbar
+      var before = null;
+      if (afterId) {
+        let elem = document.getElementById(afterId);
+        if (elem && elem.parentNode == toolbar)
+          before = elem.nextElementSibling;
       }
-  };
 
-  /*
-   * Logs a message to the console as a TrustAuth message.
-   *
-   * @param aMessage the message to log
-   */
-  var log = function(aMessage) {
-      var console = Components.classes['@mozilla.org/consoleservice;1'].
-                getService(Components.interfaces.nsIConsoleService);
-      console.logStringMessage('TrustAuth: ' + aMessage);
-  };
+      toolbar.insertItem(id, before);
+      toolbar.setAttribute("currentset", toolbar.currentSet);
+      document.persist(toolbar.id, "currentset");
 
-  /*
-   * Calculates the md5 hash of the given string
-   *
-   * @param string the string to hash
-   * @return the md5 hash
-   */
-  var md5 = function(string) {
-    // Get the hash function object
-    var ch = Components.classes["@mozilla.org/security/hash;1"]
-                   .createInstance(Components.interfaces.nsICryptoHash);
-    ch.init(ch.MD5);
-    return hash(ch, string);
+      if (toolbarId == "addon-bar")
+        toolbar.collapsed = false;
+    }
   };
 
   /*
@@ -837,8 +500,8 @@ window.TrustAuth = function() {
 
     prompts.promptPassword(null, message, null, password, null, checked);
     if (password.value !== null) {
-      encryption_key = calculate_encryption_key(password.value);
-      store_encryption_key(encryption_key);
+      password_key = ta_crypto.calculate_password_key(password.value, SALTS['PASSWORD']);
+      db.store_password_key(password_key);
     }
   };
 
@@ -858,14 +521,11 @@ window.TrustAuth = function() {
       while ( ! verify_password(password.value)) {
         if ( ! prompts.promptPassword(null, "Incorrect master password", null, password, null, checked)) return false;
       }
-      encryption_key = calculate_encryption_key(password.value);
+      password_key = ta_crypto.calculate_password_key(password.value, SALTS['PASSWORD']);
+      after_unlock();
       return true;
     }
     return false;
-  };
-
-  var set_b_pref = function(preference, value) {
-      prefs.setBoolPref(preference, value);
   };
 
   /*
@@ -874,197 +534,7 @@ window.TrustAuth = function() {
    * @param image the image url to change the image to
    */
   var set_button_image = function(image) {
-    jQuery('#trustauth-main-button', document).attr('image', image);
-  };
-
-  /*
-   * This function changes the label of the main button to text.
-   *
-   * @param text the text to change the button to.
-   */
-  var set_status = function(text) {
-    document.getElementById('trustauth-status').value = text;
-  };
-
-  var set_c_pref = function(preference, value) {
-      prefs.setCharPref(preference, value);
-  };
-
-  var set_i_pref = function(preference, value) {
-      prefs.setIntPref(preference, value);
-  };
-
-  /*
-   * Calculates the sha-1 hash of the given string
-   *
-   * @param string the string to hash
-   * @return the sha-1 hash
-   */
-  var sha1 = function(string) {
-    // Get the hash function object
-    var ch = Components.classes["@mozilla.org/security/hash;1"]
-                   .createInstance(Components.interfaces.nsICryptoHash);
-    ch.init(ch.SHA1);
-    return hash(ch, string);
-  };
-
-  /*
-   * Calculates the sha-256 hash of the given string
-   *
-   * @param string the string to hash
-   * @return the sha-256 hash
-   */
-  var sha256 = function(string) {
-    // Get the hash function object
-    var ch = Components.classes["@mozilla.org/security/hash;1"]
-                   .createInstance(Components.interfaces.nsICryptoHash);
-    ch.init(ch.SHA256);
-    return hash(ch, string);
-  };
-
-  /*
-   * Calculates the sha-512 hash of the given string
-   *
-   * @param string the string to hash
-   * @return the sha-512 hash
-   */
-  var sha512 = function(string) {
-    // Get the hash function object
-    var ch = Components.classes["@mozilla.org/security/hash;1"]
-                   .createInstance(Components.interfaces.nsICryptoHash);
-    ch.init(ch.SHA512);
-    return hash(ch, string);
-  };
-
-  /*
-   * Prompts the user with the password dialog.
-   *
-   * NOTE: currently not in use.
-   */
-  var show_master_password_dialog = function() {
-    var win = window.openDialog("chrome://trustauth/content/password_dialog.xul",
-                      "trustauthPasswordDialog", "chrome,centerscreen");
-  };
-
-  /*
-   * This function stores the key in the browser's password manager
-   *
-   * @param key the key to store
-   */
-  var store_encryption_key = function(key) {
-    var success = false;
-    if (! is_password_set()) {
-      var db = db_connect();
-
-      try {
-        var statement = db.createStatement("INSERT OR ABORT INTO password_verify (hash) VALUES(:hash)");
-        statement.params.hash = get_storage_hash(key);
-
-        success = statement.executeStep();
-      } catch (ex) {
-        dump(ex);
-        log(db.lastErrorString);
-      } finally {
-        statement.finalize();
-        db.close();
-      }
-
-    }
-    return success;
-  };
-
-  /*
-   * Stores the key pair for the matching domain
-   *
-   * @param domain the domain associated with this key pair
-   * @param public_key the public key of the pair as a forge object
-   * @param private_key the private key of the pair as a forge object
-   */
-  var store_key_pair = function(domain, public_key, private_key) {
-    var db = db_connect();
-
-    // First try to insert the domain if it's not already there.
-    var site_id = get_site_id(domain);
-    db.beginTransaction();
-    if (site_id === null) {
-      try {
-        var statement = db.createStatement("INSERT OR ABORT INTO sites (domain) VALUES(:domain)");
-        statement.params.domain = domain;
-        statement.execute();
-
-        site_id = db.lastInsertRowID;
-      } catch (e) {
-        if (db.lastErrorString !== "column domain is not unique") {
-          log(db.lastErrorString);
-          dump(e);
-          db.rollbackTransaction();
-
-          db.close();
-          return;
-        }
-      } finally {
-        statement.finalize();
-      }
-    }
-    log('site_id: ' + site_id);
-
-    // Now that the domain is there, try to insert the new keys
-    try {
-      var statement = db.createStatement("INSERT INTO keys (public_key, private_key, created) VALUES(:public_key, :private_key, :created)");
-      statement.params.public_key  = public_key;
-      statement.params.private_key = private_key;
-      statement.params.created     = (new Date()).getTime();
-      statement.execute();
-
-      var key_id = db.lastInsertRowID;
-      log('key_id: ' + key_id);
-    } catch (e) {
-      dump(e);
-      log(db.lastErrorString);
-      db.rollbackTransaction();
-
-      db.close();
-      return;
-    } finally {
-      statement.finalize();
-    }
-
-    // Last but not least, if both the domain and the keys were inserted then link them
-    if (key_id !== null && site_id !== null) {
-      try {
-        var statement = db.createStatement("INSERT INTO keys_sites (key_id, site_id) VALUES(:key_id, :site_id)");
-        statement.params.key_id  = key_id;
-        statement.params.site_id = site_id;
-        log('combo result: ' + statement.executeStep());
-      } catch (e) {
-        dump(e);
-        log(db.lastErrorString);
-        db.rollbackTransaction();
-
-        db.close();
-        return;
-      } finally {
-        statement.finalize();
-      }
-    } else {
-      db.rollbackTransaction();
-      return;
-    }
-
-    // If everything was ok then commit the transaction
-    log('key stored successfully');
-    db.commitTransaction();
-
-    db.close();
-  };
-
-  /*
-   * Triggered when any attribute changes on a tab.
-   */
-  var tab_modified = function(event) {
-    if (event.target.selected) {
-      check_page();
-    }
+    document.getElementById('trustauth-main-button').setAttribute('image', image);
   };
 
   /**
@@ -1074,10 +544,9 @@ window.TrustAuth = function() {
    * @return {bool} true if it is, false otherwise
    */
   var verify_password = function(password) {
-    var hash = get_stored_hash();
+    var hash = db.get_stored_hash();
 
-    log('checking hash: ' + get_storage_hash(calculate_encryption_key(password)));
-    return (hash !== null && hash === get_storage_hash(calculate_encryption_key(password)));
+    return (hash !== null && hash === db.get_storage_hash(ta_crypto.calculate_password_key(password, SALTS['PASSWORD'])));
   };
 
   // Initialize the TrustAuth object
@@ -1086,9 +555,8 @@ window.TrustAuth = function() {
     on_load(e);
   }, false);
 
-}();
+})();
 
 }
 
 })();
-

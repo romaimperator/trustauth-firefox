@@ -1,5 +1,5 @@
 /**
- * This is the main code for generating key pairs on a separate thread.
+ * This code loads the Forge library. This is Firefox specific code.
  *
  * @author Daniel Fox
  * @link trustauth.com
@@ -23,9 +23,28 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+var EXPORTED_SYMBOLS = [ 'forge' ];
+
+/* This function was taken from the forum post on this page: http://forums.mozillazine.org/viewtopic.php?p=921150#921150 */
+function getContents(aURL){
+  var ioService=Components.classes["@mozilla.org/network/io-service;1"]
+    .getService(Components.interfaces.nsIIOService);
+  var scriptableStream=Components
+    .classes["@mozilla.org/scriptableinputstream;1"]
+    .getService(Components.interfaces.nsIScriptableInputStream);
+
+  var channel=ioService.newChannel(aURL,null,null);
+  var input=channel.open();
+  scriptableStream.init(input);
+  var str=scriptableStream.read(input.available());
+  scriptableStream.close();
+  input.close();
+  return str;
+}
+
 var window = {};
-onmessage = function(event) {
-  importScripts(
+
+var forge_parts = [
     "chrome://trustauth/content/forge/jsbn.js",
     "chrome://trustauth/content/forge/util.js",
     "chrome://trustauth/content/forge/aes.js",
@@ -37,16 +56,12 @@ onmessage = function(event) {
     "chrome://trustauth/content/forge/prng.js",
     "chrome://trustauth/content/forge/random.js",
     "chrome://trustauth/content/forge/rsa.js",
-    "chrome://trustauth/content/forge/pki.js"
-  );
+    "chrome://trustauth/content/forge/pki.js",
+    "chrome://trustauth/content/forge/hmac.js",
+    "chrome://trustauth/content/forge/pbkdf2.js",
+];
 
-  var key_length = event.data['key_length'];
-  var exponent   = event.data['exponent'];
-
-  var keys = window.forge.pki.rsa.generateKeyPair(key_length, exponent);
-
-  keys['publicKey'] = window.forge.pki.publicKeyToPem(keys['publicKey']);
-  keys['privateKey'] = window.forge.pki.privateKeyToPem(keys['privateKey']);
-
-  self.postMessage(keys);
+for (i in forge_parts) {
+  eval(getContents(forge_parts[i]));
 }
+var forge = window.forge;

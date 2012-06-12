@@ -1,5 +1,5 @@
 /**
- * This is the main code for generating key pairs on a separate thread.
+ * These are the constants used in the TrustAuth addon. This is browser independent code.
  *
  * @author Daniel Fox
  * @link trustauth.com
@@ -23,30 +23,52 @@
  * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-var window = {};
-onmessage = function(event) {
-  importScripts(
-    "chrome://trustauth/content/forge/jsbn.js",
-    "chrome://trustauth/content/forge/util.js",
-    "chrome://trustauth/content/forge/aes.js",
-    "chrome://trustauth/content/forge/asn1.js",
-    "chrome://trustauth/content/forge/md5.js",
-    "chrome://trustauth/content/forge/sha1.js",
-    "chrome://trustauth/content/forge/sha256.js",
-    "chrome://trustauth/content/forge/oids.js",
-    "chrome://trustauth/content/forge/prng.js",
-    "chrome://trustauth/content/forge/random.js",
-    "chrome://trustauth/content/forge/rsa.js",
-    "chrome://trustauth/content/forge/pki.js"
-  );
+var EXPORTED_SYMBOLS = [
+  'TRUSTAUTH_AJAX_LOADER',
+  'TRUSTAUTH_BUTTON',
+  'TRUSTAUTH_DISABLED',
+  'TRUSTAUTH_CHALLENGE_ID',
+  'TRUSTAUTH_RESPONSE_ID',
+  'TRUSTAUTH_REGISTER_ID',
+  'TRUSTAUTH_KEY_ID',
+  'TIMEOUT',
+  'HASH_LENGTH',
+  'MESSAGE_TYPE',
+  'CACHE_KEY_COUNT',
+  'ITERATION_COUNT',
+  'KEY_LENGTH',
+  'ENCRYPTION_KEY_LENGTH',
+  'SALT_IDS',
+  'SALT_LENGTH',
+  'SALTS',
+];
 
-  var key_length = event.data['key_length'];
-  var exponent   = event.data['exponent'];
+var TRUSTAUTH_AJAX_LOADER = 'chrome://trustauth/skin/ajax-loader.gif';
+var TRUSTAUTH_BUTTON      = 'chrome://trustauth/skin/button.png';
+var TRUSTAUTH_DISABLED    = 'chrome://trustauth/skin/button-disabled.png';
 
-  var keys = window.forge.pki.rsa.generateKeyPair(key_length, exponent);
+var TRUSTAUTH_CHALLENGE_ID = "trustauth-challenge";
+var TRUSTAUTH_RESPONSE_ID  = "trustauth-response";
+var TRUSTAUTH_REGISTER_ID  = "trustauth-register";
+var TRUSTAUTH_KEY_ID       = "trustauth-key";
 
-  keys['publicKey'] = window.forge.pki.publicKeyToPem(keys['publicKey']);
-  keys['privateKey'] = window.forge.pki.privateKeyToPem(keys['privateKey']);
+var TIMEOUT = 30; // The length of time a message will be valid in seconds
 
-  self.postMessage(keys);
-}
+var HASH_LENGTH = 32;
+
+var MESSAGE_TYPE = {
+  'challenge': 0,
+  'response' : 1,
+};
+
+var CACHE_KEY_COUNT = 2;
+
+var ITERATION_COUNT = 2048;
+
+var KEY_LENGTH = 32; // 256 bits
+var ENCRYPTION_KEY_LENGTH = 32; // 256 bits
+
+var SALT_IDS   = { 'ENC_KEY': 1, 'STORAGE': 2, 'PASSWORD': 3 };
+var SALT_LENGTH = 32; // 256 bits
+
+var SALTS = { 'ENC_KEY': null, 'STORAGE': null, 'PASSWORD': null };
