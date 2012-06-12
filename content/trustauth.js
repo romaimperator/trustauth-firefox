@@ -101,13 +101,13 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    */
   var add_trustauth_key = function() {
     if (is_unlocked()) {
-      var register_element = utils.get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
-      register_element.removeEventListener("click", add_trustauth_key, true);
+      var register_element = utils.get_doc().getElementById(TRUSTAUTH_KEY_ID);
 
       utils.disable_child_submit(register_element.parentNode);
 
       var domain = utils.get_domain();
       if (db.domain_exist(domain)) {
+        log("inserting key...");
         insert_key();
         utils.enable_child_submit(register_element.parentNode);
       } else {
@@ -185,13 +185,14 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    */
   var encrypt_login = function() {
     if (is_unlocked()) {
-      var domain = utils.get_form_hostname(get_login_form());
-
-      if ( ! db.domain_exist(domain)) { log("No key for this domain."); return; }
 
       var challenge_element = utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID);
 
       if ( ! challenge_element) { log("Could not find the challenge element."); return; }
+
+      var domain = utils.get_form_hostname(get_login_form());
+
+      if ( ! db.domain_exist(domain)) { log("No key for this domain."); set_button_image(TRUSTAUTH_BUTTON); return; }
 
       utils.disable_child_submit(challenge_element.parentNode);
       var data = unpack_data(challenge_element.value);
