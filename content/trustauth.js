@@ -302,7 +302,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
         return;
       } else {
         if (is_unlocked()) {
-          dump(unpack_data(utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
+          utils.dump(unpack_data(utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
           add_key_listener();
           encrypt_login();
         }
