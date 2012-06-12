@@ -259,7 +259,7 @@ var db = {
 
     this.manager.add_migration("Create keys table", this._create_table_migration("keys", { id: "INTEGER PRIMARY KEY", public_key: "TEXT", private_key: "TEXT", created: "TEXT" }));
     this.manager.add_migration("Create sites table", this._create_table_migration("sites", { id: "INTEGER PRIMARY KEY", domain: "TEXT UNIQUE" }));
-    this.manager.add_migration("Create key_sites table", this._create_table_migration("key_sites", { key_id: "NUMERIC", site_id: "NUMERIC" }));
+    this.manager.add_migration("Create key_sites table", this._create_table_migration("keys_sites", { key_id: "NUMERIC", site_id: "NUMERIC" }));
     this.manager.add_migration("Create password_verify table", this._create_table_migration("password_verify", { hash: "TEXT" }));
     this.manager.add_migration("Create encryption_key table", this._create_table_migration("encryption_key", { key: "TEXT" }));
     this.manager.add_migration("Create salts table", this._create_table_migration("salts", { salt: "TEXT UNIQUE", type: "INTEGER UNIQUE", "FOREIGN KEY (type)":"REFERENCES salt_types(id)" }));
@@ -533,3 +533,5 @@ var db = {
     return r.join(',');
   },
 };
+
+db.init();

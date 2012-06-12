@@ -84,18 +84,6 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   };
 
   /**
-   * This function is called to bind a click listener to the Add TrustAuth Key button.
-   */
-  var add_key_listener = function() {
-    if (is_unlocked()) {
-      var add_key_button = utils.get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
-      if (add_key_button) {
-        add_key_button.addEventListener("click", add_trustauth_key, true);
-      }
-    }
-  };
-
-  /**
    * This function injects the public key into a hidden form field with an ID of
    * "trustauth-key" whenever the Add TrustAuth Key button is clicked.
    */
@@ -126,8 +114,9 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     if ( ! db.is_encryption_key_set()) {
       db.store_encryption_key(ta_crypto.generate_encryption_key(), password_key);
     }
+    replenish_cache();
     encrypt_login();
-    add_key_listener();
+    add_trustauth_key();
   };
 
   /**
@@ -280,7 +269,6 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     // initialization code
     initialized = true;
 
-    db.init();
     init_listener();
     set_button_image(TRUSTAUTH_BUTTON);
 
@@ -302,8 +290,10 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
         return;
       } else {
         if (is_unlocked()) {
-          utils.dump(unpack_data(utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
-          add_key_listener();
+          if ( ! db.is_encryption_key_set()) {
+            db.store_encryption_key(ta_crypto.generate_encryption_key(), password_key);
+          }
+          add_trustauth_key();
           encrypt_login();
         }
       }
@@ -438,8 +428,10 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    * Creates new key pairs for the cache of keys until the CACHE_KEY_COUNT is reached.
    */
   var replenish_cache = function() {
-    if (db.count_cache_keys() < CACHE_KEY_COUNT) {
-      create_cache_pair(replenish_cache);
+    if (is_unlocked()) {
+      if (db.count_cache_keys() < CACHE_KEY_COUNT) {
+        create_cache_pair(replenish_cache);
+      }
     }
   };
 
@@ -502,6 +494,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     if (password.value !== null) {
       password_key = ta_crypto.calculate_password_key(password.value, SALTS['PASSWORD']);
       db.store_password_key(password_key);
+      after_unlock();
     }
   };
 
