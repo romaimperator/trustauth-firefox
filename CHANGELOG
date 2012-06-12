@@ -1,4 +1,12 @@
 2012-06-11  Daniel Fox  <romaimperator@gmail.com>
+		Release 1.0.2
+		* Moved the check to generate an encryption key.
+		* Added the hard-coded key pair for the demo site.
+
+		Release 1.0.1
+		* Fixed a couple bugs with creating the database and replenishing the
+		cachhe of keys.
+
 		Release 1.0.0
 		* where to start...
 		* Updated the add-on to use the new TrustAuth architecture. This included
