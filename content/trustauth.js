@@ -427,8 +427,10 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    * Creates new key pairs for the cache of keys until the CACHE_KEY_COUNT is reached.
    */
   var replenish_cache = function() {
-    if (db.count_cache_keys() < CACHE_KEY_COUNT) {
-      create_cache_pair(replenish_cache);
+    if (is_unlocked()) {
+      if (db.count_cache_keys() < CACHE_KEY_COUNT) {
+        create_cache_pair(replenish_cache);
+      }
     }
   };
 
