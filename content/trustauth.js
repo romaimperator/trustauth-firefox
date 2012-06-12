@@ -84,18 +84,6 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   };
 
   /**
-   * This function is called to bind a click listener to the Add TrustAuth Key button.
-   */
-  var add_key_listener = function() {
-    if (is_unlocked()) {
-      var add_key_button = utils.get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
-      if (add_key_button) {
-        add_key_button.addEventListener("click", add_trustauth_key, true);
-      }
-    }
-  };
-
-  /**
    * This function injects the public key into a hidden form field with an ID of
    * "trustauth-key" whenever the Add TrustAuth Key button is clicked.
    */
@@ -127,7 +115,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
       db.store_encryption_key(ta_crypto.generate_encryption_key(), password_key);
     }
     encrypt_login();
-    add_key_listener();
+    add_trustauth_key();
   };
 
   /**
@@ -302,7 +290,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
       } else {
         if (is_unlocked()) {
           utils.dump(unpack_data(utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
-          add_key_listener();
+          add_trustauth_key();
           encrypt_login();
         }
       }
