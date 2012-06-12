@@ -1,3 +1,24 @@
+2012-06-11  Daniel Fox  <romaimperator@gmail.com>
+		Release 1.0.0
+		* where to start...
+		* Updated the add-on to use the new TrustAuth architecture. This included
+		the processing of TrustAuth challenges provided on a login form. This data
+		is a special format using the TrustAuth Protocol which includes among
+		other things a timestamp of expiration, a domain name, and a hash of the
+		message. The response is also placed into a field using the protocol
+		format.
+		* The addon now has database migrations. This will allow me to change the
+		schema without needing to do many checks to figure out what version the
+		database is on and how to get to the latest version.
+		* The security has been improved. The password is now passed through a
+		password-based key derivation function with 2048 iterations to generate an
+		encryption key. Then instead of using this key directly, it is used to
+		encrypt a randomly generated encryption key. This random key is what is
+		actually used to encrypt all of the key pairs. This makes it easy to
+		change the password without requiring reencryption of every key pair.
+		Lastly, instead of using hard-coded salts, the salts required are
+		generated randomly the first time they are needed.
+
 2012-04-08  Daniel Fox  <romaimperator@gmail.com>
 		Release 0.3.2.1
 		* fixing readme and this changelog
