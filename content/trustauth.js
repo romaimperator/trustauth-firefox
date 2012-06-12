@@ -289,7 +289,9 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
         return;
       } else {
         if (is_unlocked()) {
-          utils.dump(unpack_data(utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID).value));
+          if ( ! db.is_encryption_key_set()) {
+            db.store_encryption_key(ta_crypto.generate_encryption_key(), password_key);
+          }
           add_trustauth_key();
           encrypt_login();
         }
