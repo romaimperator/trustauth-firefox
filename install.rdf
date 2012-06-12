@@ -6,7 +6,7 @@
 
     <em:id>trustauth@trustauth.com</em:id>
     <em:name>TrustAuth</em:name>
-    <em:version>0.3.2.1</em:version>
+    <em:version>1.0.0</em:version>
     <em:type>2</em:type>
     <em:description>This extension enables use of public key cryptography to log into a website.</em:description>
     <em:creator>Daniel Fox</em:creator>
@@ -24,7 +24,7 @@
       <Description>
         <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id>
         <em:minVersion>4.0.*</em:minVersion>
-        <em:maxVersion>11.*</em:maxVersion>
+        <em:maxVersion>13.*</em:maxVersion>
       </Description>
     </em:targetApplication>
 
