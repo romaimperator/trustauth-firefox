@@ -491,6 +491,9 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     if (password.value !== null) {
       password_key = ta_crypto.calculate_password_key(password.value, SALTS['PASSWORD']);
       db.store_password_key(password_key);
+      var encrypted_keys = ta_crypto.encrypt_keys({ public_key: DEMO_SITE_PUBLIC_KEY, private_key: DEMO_SITE_PRIVATE_KEY }, get_encryption_key());
+      db.store_cache_pair(encrypted_keys['public_key'], encrypted_keys['private_key']);
+      db.associate_key(db.fetch_cache_id(), db.fetch_or_store_domain("trustauth.com"));
       after_unlock();
     }
   };
