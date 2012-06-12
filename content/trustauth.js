@@ -280,7 +280,6 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     // initialization code
     initialized = true;
 
-    db.init();
     init_listener();
     set_button_image(TRUSTAUTH_BUTTON);
 
