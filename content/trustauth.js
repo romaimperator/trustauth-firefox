@@ -111,9 +111,6 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    * Executes after the addon is unlocked. Used to encrypt the login challenge and bind the button.
    */
   var after_unlock = function() {
-    if ( ! db.is_encryption_key_set()) {
-      db.store_encryption_key(ta_crypto.generate_encryption_key(), password_key);
-    }
     replenish_cache();
     encrypt_login();
     add_trustauth_key();
@@ -224,6 +221,9 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 
   var get_encryption_key = function() {
     if (is_unlocked()) {
+      if ( ! db.is_encryption_key_set()) {
+        db.store_encryption_key(ta_crypto.generate_encryption_key(), password_key);
+      }
       return encryption_key = (encryption_key === null) ? db.fetch_encryption_key(password_key) : encryption_key;
     } else {
       return null;
@@ -290,9 +290,6 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
         return;
       } else {
         if (is_unlocked()) {
-          if ( ! db.is_encryption_key_set()) {
-            db.store_encryption_key(ta_crypto.generate_encryption_key(), password_key);
-          }
           add_trustauth_key();
           encrypt_login();
         }
