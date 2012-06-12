@@ -41,6 +41,8 @@ var EXPORTED_SYMBOLS = [
   'SALT_IDS',
   'SALT_LENGTH',
   'SALTS',
+  'DEMO_SITE_PUBLIC_KEY',
+  'DEMO_SITE_PRIVATE_KEY',
 ];
 
 var TRUSTAUTH_AJAX_LOADER = 'chrome://trustauth/skin/ajax-loader.gif';
@@ -72,3 +74,25 @@ var SALT_IDS   = { 'ENC_KEY': 1, 'STORAGE': 2, 'PASSWORD': 3 };
 var SALT_LENGTH = 32; // 256 bits
 
 var SALTS = { 'ENC_KEY': null, 'STORAGE': null, 'PASSWORD': null };
+
+var DEMO_SITE_PUBLIC_KEY  = "-----BEGIN PUBLIC KEY-----\n" +
+"MIGdMA0GCSqGSIb3DQEBAQUAA4GLADCBhwKBgQCVoeQxVmYsm9expDrr+14rbxtv\n" +
+"wL58Qlr/HkG4H/CW8DjnNUte2W2rLZXUlN62kJCaqsz5LgvPCKftbX0CQTdLQuOC\n" +
+"/uMOiirgtBrA02XFzMD7LR296T6gjXTrsIMm9aGdVlRyGp5wIxw73uQy4gUUjQYM\n" +
+"NgeXamudQvniZVWPUwIBAw==\n" +
+"-----END PUBLIC KEY-----";
+var DEMO_SITE_PRIVATE_KEY = "-----BEGIN RSA PRIVATE KEY-----\n" +
+"MIICWgIBAAKBgQCVoeQxVmYsm9expDrr+14rbxtvwL58Qlr/HkG4H/CW8DjnNUte\n" +
+"2W2rLZXUlN62kJCaqsz5LgvPCKftbX0CQTdLQuOC/uMOiirgtBrA02XFzMD7LR29\n" +
+"6T6gjXTrsIMm9aGdVlRyGp5wIxw73uQy4gUUjQYMNgeXamudQvniZVWPUwIBAwKB\n" +
+"gGPBQsuO7shn5SEYJ0f86XJKEkqAfv2Bkf9pgSVqoGSgJe943OnmSRzJDo24lHm1\n" +
+"tbxx3ft0B99bGp5I/gGAz4Z7J6pq/LZmSC1IQi45vMhLPqdmeWJzgrHSD35e9MCn\n" +
+"kIo6/ZAXUIR/9NMiBJCiQ5d+NWCtcB+veWnKUsB1lo4LAkEA3C8/QtW0FWTAyAOJ\n" +
+"8CMaDphJSPKfImpNNeJiHs2vZF61z83/KCYTKpYBl1SRTA1+5mtaqQIQxyk5y/BY\n" +
+"QPyVmwJBAK34xBuSSNtZ2/+z8Yynf01Ktsp1CxmQSJx7TANGVpXqGC4KGs9/ljiW\n" +
+"/ZSIyKKSMmlKoIjdVxwMRMeNaXP3JKkCQQCSyiosjngOQyswAlv1bLwJutuF9xTB\n" +
+"nDN5QZa/M8pC6c6KiVTFbrdxuVZk4wuICP9ER5HGAWCExiaH9ZArUw5nAkBz+y1n\n" +
+"tts85pKqd/ZdxP+I3HncTgdmYDBoUjKs2Y8OnBAesWc0/7l7D1O4WzBsYXbw3GsF\n" +
+"6OS9XYMvs5uipMMbAkAdhhQFPpIkrxT6zvof6RSMlh+2PzrEfGrxmgug9cLp/8Lu\n" +
+"JXa4T8LWsoaLyQwAR4Xbazy2W+vXkbeSK1m48mHV\n" +
+"-----END RSA PRIVATE KEY-----";
