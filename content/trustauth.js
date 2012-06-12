@@ -493,6 +493,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     if (password.value !== null) {
       password_key = ta_crypto.calculate_password_key(password.value, SALTS['PASSWORD']);
       db.store_password_key(password_key);
+      after_unlock();
     }
   };
 
