@@ -7,5 +7,5 @@ CHROME_PROVIDERS="content locale skin"
 CLEAN_UP=1
 ROOT_FILES="readme.txt"
 ROOT_DIRS="defaults/"
-BEFORE_BUILD=
+BEFORE_BUILD="find . -name .DS_Store -type f -delete"
 AFTER_BUILD=
