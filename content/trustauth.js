@@ -91,18 +91,22 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     if (is_unlocked()) {
       var register_element = utils.get_doc().getElementById(TRUSTAUTH_KEY_ID);
 
-      utils.disable_child_submit(register_element.parentNode);
+      if (register_element) {
+        utils.disable_child_submit(register_element.parentNode);
 
-      var domain = utils.get_domain();
-      if (db.domain_exist(domain)) {
-        log("inserting key...");
-        insert_key();
-        utils.enable_child_submit(register_element.parentNode);
-      } else {
-        assign_pair_and_replace(domain, function() {
+        var domain = utils.get_domain();
+        if (db.domain_exist(domain)) {
+          log("inserting key...");
           insert_key();
           utils.enable_child_submit(register_element.parentNode);
-        });
+        } else {
+          assign_pair_and_replace(domain, function() {
+            insert_key();
+            utils.enable_child_submit(register_element.parentNode);
+          });
+        }
+      } else {
+        // No register element on the page
       }
     }
   };
