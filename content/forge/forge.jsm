@@ -25,23 +25,6 @@
  */
 var EXPORTED_SYMBOLS = [ 'forge' ];
 
-/* This function was taken from the forum post on this page: http://forums.mozillazine.org/viewtopic.php?p=921150#921150 */
-function getContents(aURL){
-  var ioService=Components.classes["@mozilla.org/network/io-service;1"]
-    .getService(Components.interfaces.nsIIOService);
-  var scriptableStream=Components
-    .classes["@mozilla.org/scriptableinputstream;1"]
-    .getService(Components.interfaces.nsIScriptableInputStream);
-
-  var channel=ioService.newChannel(aURL,null,null);
-  var input=channel.open();
-  scriptableStream.init(input);
-  var str=scriptableStream.read(input.available());
-  scriptableStream.close();
-  input.close();
-  return str;
-}
-
 var window = {};
 
 var forge_parts = [
@@ -61,7 +44,10 @@ var forge_parts = [
     "chrome://trustauth/content/forge/pbkdf2.js",
 ];
 
+var mozIJSSubScriptLoader = Components.classes["@mozilla.org/moz/jssubscript-loader;1"]
+                          .getService(Components.interfaces.mozIJSSubScriptLoader);
+
 for (i in forge_parts) {
-  eval(getContents(forge_parts[i]));
+  mozIJSSubScriptLoader.loadSubScript(forge_parts[i], window);
 }
 var forge = window.forge;
