@@ -272,16 +272,13 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    */
   var on_load = function() {
     // initialization code
-    initialized = true;
-
-    init_listener();
-
     if (prefs.get_b_pref('first_run')) {
       prefs.set_b_pref('first_run', false);
       install_button("nav-bar", "trustauth-main-button");
-      // The "addon-bar" is available since Firefox 4
-      install_button("addon-bar", "trustauth-main-button");
     }
+
+    init_listener();
+    initialized = true;
   };
 
   /*
