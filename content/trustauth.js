@@ -74,6 +74,8 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   var password_key   = null;
   var encryption_key = null;
 
+  var idle_timeout = 0;
+  var idle_timeout_func = null;
 
 
 /*****************************/
@@ -267,6 +269,27 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     return get_password_key() !== null;
   };
 
+  /**
+   * Locks the add-on.
+   */
+  var lock = function() {
+    password_key = null;
+    set_button_image(TRUSTAUTH_LOGO_DISABLED);
+  }
+
+  /**
+   * Runs once every minute to check if it's time to lock the plugin. If it is then it stops the
+   * interval function and locks the add-on.
+   */
+  var on_idle_interval = function() {
+    idle_timeout += 60;
+    if (idle_timeout >= prefs.get_i_pref("idle_timeout")) {
+      clearInterval(idle_timeout_func);
+      idle_timeout_func = null;
+      lock();
+    }
+  };
+
   /*
    * Initializes the addon.
    */
@@ -279,6 +302,16 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 
     init_listener();
     initialized = true;
+  };
+
+  /**
+   * Runs every time the mouse is moved. Used to implement the automatic idle locking feature.
+   */
+  var on_mouse_move = function(event) {
+    if (idle_timeout_func === null) {
+      idle_timeout_func = setInterval(on_idle_interval, 60000);
+    }
+    idle_timeout = 0;
   };
 
   /*
@@ -445,6 +478,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   var init_listener = function() {
     gBrowser.addEventListener("load", on_page_load, true);
     document.getElementById('trustauth-menu-unlock').addEventListener("click", prompt_or_set_new_password, false);
+    gBrowser.addEventListener("mousemove", on_mouse_move, true);
   };
 
   /**
