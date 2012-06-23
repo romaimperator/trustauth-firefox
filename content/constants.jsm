@@ -25,12 +25,13 @@
  */
 var EXPORTED_SYMBOLS = [
   'TRUSTAUTH_AJAX_LOADER',
-  'TRUSTAUTH_BUTTON',
-  'TRUSTAUTH_DISABLED',
+  'TRUSTAUTH_LOGO',
+  'TRUSTAUTH_LOGO_DISABLED',
   'TRUSTAUTH_CHALLENGE_ID',
   'TRUSTAUTH_RESPONSE_ID',
   'TRUSTAUTH_REGISTER_ID',
   'TRUSTAUTH_KEY_ID',
+  'FIREFOX_BUTTON_ID',
   'TIMEOUT',
   'HASH_LENGTH',
   'MESSAGE_TYPE',
@@ -45,14 +46,15 @@ var EXPORTED_SYMBOLS = [
   'DEMO_SITE_PRIVATE_KEY',
 ];
 
-var TRUSTAUTH_AJAX_LOADER = 'chrome://trustauth/skin/ajax-loader.gif';
-var TRUSTAUTH_BUTTON      = 'chrome://trustauth/skin/button.png';
-var TRUSTAUTH_DISABLED    = 'chrome://trustauth/skin/button-disabled.png';
+var TRUSTAUTH_AJAX_LOADER   = 'chrome://trustauth/skin/ajax-loader.gif';
+var TRUSTAUTH_LOGO          = 'chrome://trustauth/skin/logo_small_shorter_22.png';
+var TRUSTAUTH_LOGO_DISABLED = 'chrome://trustauth/skin/logo_small_shorter_disabled_22.png';
 
 var TRUSTAUTH_CHALLENGE_ID = "trustauth-challenge";
 var TRUSTAUTH_RESPONSE_ID  = "trustauth-response";
 var TRUSTAUTH_REGISTER_ID  = "trustauth-register";
 var TRUSTAUTH_KEY_ID       = "trustauth-key";
+var FIREFOX_BUTTON_ID      = 'trustauth-main-button';
 
 var TIMEOUT = 30; // The length of time a message will be valid in seconds
 

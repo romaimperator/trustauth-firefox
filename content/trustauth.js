@@ -527,7 +527,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    * @param image the image url to change the image to
    */
   var set_button_image = function(image) {
-    document.getElementById('trustauth-main-button').setAttribute('image', image);
+    document.getElementById(FIREFOX_BUTTON_ID).setAttribute('image', image);
   };
 
   /**
