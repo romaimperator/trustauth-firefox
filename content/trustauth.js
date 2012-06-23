@@ -118,6 +118,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     replenish_cache();
     encrypt_login();
     add_trustauth_key();
+    set_button_image(TRUSTAUTH_LOGO);
   };
 
   /**
@@ -274,7 +275,6 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     initialized = true;
 
     init_listener();
-    set_button_image(TRUSTAUTH_BUTTON);
 
     if (prefs.get_b_pref('first_run')) {
       prefs.set_b_pref('first_run', false);
@@ -531,7 +531,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    * @param image the image url to change the image to
    */
   var set_button_image = function(image) {
-    document.getElementById('trustauth-main-button').setAttribute('image', image);
+    document.getElementById(FIREFOX_BUTTON_ID).setAttribute('image', image);
   };
 
   /**

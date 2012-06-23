@@ -14,7 +14,8 @@
     <em:homepageURL>http://trustauth.com/</em:homepageURL>
     <em:optionsURL>chrome://trustauth/content/options.xul</em:optionsURL>
     <em:optionsType>2</em:optionsType>
-    <em:iconURL>chrome://trustauth/skin/icon.png</em:iconURL>
+    <em:iconURL>chrome://trustauth/skin/logo_small_48.png</em:iconURL>
+    <em:icon64URL>chrome://trustauth/skin/logo_small_64.png</em:icon64URL>
     <!--em:optionsURL>chrome://sampleext/content/settings.xul</em:optionsURL>
     <em:aboutURL>chrome://sampleext/content/about.xul</em:aboutURL>
     <em:updateURL>http://sampleextension.mozdev.org/update.rdf</em:updateURL-->
