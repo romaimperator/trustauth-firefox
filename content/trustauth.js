@@ -210,8 +210,9 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    */
   var generate_key_pair = function(handle_keys) {
     // Retreive the key length and exponent values
-    var key_length = prefs.get_i_pref("key_length");
-    var exponent   = prefs.get_i_pref("exponent");
+    var prefered_length = prefs.get_i_pref("key_length");
+    var key_length = prefered_length in KEY_LENGTHS ? KEY_LENGTHS[prefered_length] : DEFAULT_KEY_LENGTH;
+    var exponent   = EXPONENT;
 
     var worker = new Worker('chrome://trustauth/content/generate_key_pair.js');
     worker.onerror   = function(event) {
