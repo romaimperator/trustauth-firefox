@@ -283,7 +283,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    * interval function and locks the add-on.
    */
   var on_idle_interval = function() {
-    idle_timeout += 60;
+    idle_timeout += 1;
     if (idle_timeout >= prefs.get_i_pref("idle_timeout")) {
       clearInterval(idle_timeout_func);
       idle_timeout_func = null;
@@ -309,10 +309,14 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    * Runs every time the mouse is moved. Used to implement the automatic idle locking feature.
    */
   var on_mouse_move = function(event) {
-    if (idle_timeout_func === null) {
-      idle_timeout_func = setInterval(on_idle_interval, 60000);
+    if ( ! is_unlocked() ) { return; }
+
+    if (prefs.get_i_pref("idle_timeout") !== 0) {
+      if (idle_timeout_func === null) {
+          idle_timeout_func = setInterval(on_idle_interval, 1000);
+      }
+      idle_timeout = 0;
     }
-    idle_timeout = 0;
   };
 
   /*
