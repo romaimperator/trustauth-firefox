@@ -298,7 +298,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     // initialization code
     if (prefs.get_b_pref('first_run')) {
       prefs.set_b_pref('first_run', false);
-      install_button("nav-bar", "trustauth-main-button");
+      install_button("nav-bar", FIREFOX_BUTTON_ID);
     }
 
     init_listener();
