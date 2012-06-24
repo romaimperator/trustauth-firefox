@@ -74,6 +74,8 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   var password_key   = null;
   var encryption_key = null;
 
+  var idle_timeout = 0;
+  var idle_timeout_func = null;
 
 
 /*****************************/
@@ -208,8 +210,9 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    */
   var generate_key_pair = function(handle_keys) {
     // Retreive the key length and exponent values
-    var key_length = prefs.get_i_pref("key_length");
-    var exponent   = prefs.get_i_pref("exponent");
+    var prefered_length = prefs.get_i_pref("key_length");
+    var key_length = prefered_length in KEY_LENGTHS ? KEY_LENGTHS[prefered_length] : DEFAULT_KEY_LENGTH;
+    var exponent   = EXPONENT;
 
     var worker = new Worker('chrome://trustauth/content/generate_key_pair.js');
     worker.onerror   = function(event) {
@@ -267,6 +270,27 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     return get_password_key() !== null;
   };
 
+  /**
+   * Locks the add-on.
+   */
+  var lock = function() {
+    password_key = null;
+    set_button_image(TRUSTAUTH_LOGO_DISABLED);
+  }
+
+  /**
+   * Runs once every minute to check if it's time to lock the plugin. If it is then it stops the
+   * interval function and locks the add-on.
+   */
+  var on_idle_interval = function() {
+    idle_timeout += 1;
+    if (idle_timeout >= prefs.get_i_pref("idle_timeout")) {
+      clearInterval(idle_timeout_func);
+      idle_timeout_func = null;
+      lock();
+    }
+  };
+
   /*
    * Initializes the addon.
    */
@@ -279,6 +303,20 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 
     init_listener();
     initialized = true;
+  };
+
+  /**
+   * Runs every time the mouse is moved. Used to implement the automatic idle locking feature.
+   */
+  var on_mouse_move = function(event) {
+    if ( ! is_unlocked() ) { return; }
+
+    if (prefs.get_i_pref("idle_timeout") !== 0) {
+      if (idle_timeout_func === null) {
+          idle_timeout_func = setInterval(on_idle_interval, 1000);
+      }
+      idle_timeout = 0;
+    }
   };
 
   /*
@@ -445,6 +483,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   var init_listener = function() {
     gBrowser.addEventListener("load", on_page_load, true);
     document.getElementById('trustauth-menu-unlock').addEventListener("click", prompt_or_set_new_password, false);
+    gBrowser.addEventListener("mousemove", on_mouse_move, true);
   };
 
   /**

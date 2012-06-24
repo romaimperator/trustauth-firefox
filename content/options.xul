@@ -3,6 +3,18 @@
 <!DOCTYPE options SYSTEM "chrome://trustauth/locale/options.dtd">
 
 <vbox xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
-  <setting pref="extensions.trustauth.key_length" type="integer" title="Key Length" desc="The length of key to generate in bits." />
-  <setting pref="extensions.trustauth.exponent" type="integer" title="Exponent" desc="The exponent to use for key generation." />
+  <setting pref="extensions.trustauth.idle_timeout" type="integer" title="Idle Timeout" desc="How long in seconds to wait while idle before automatically relocking the add-on. A value of zero disables this. Default is 15 minutes." />
+  <setting class="plain" type="control"/>
+  <setting class="thin" type="control" title="Advanced Options" desc="The following options are for advanced users and should probably be left at their default vaules.">
+    <spacer flex="1"/>
+    <vbox>
+      <setting class="plain" pref="extensions.trustauth.key_length" type="radio" title="Key Length" desc="Higher values are better but slower. Default is 2048.">
+        <radiogroup>
+          <radio value="1" label="1024 bits"/>
+          <radio value="2" label="2048 bits"/>
+          <radio value="3" label="4096 bits"/>
+        </radiogroup>
+      </setting>
+    </vbox>
+  </setting>
 </vbox>

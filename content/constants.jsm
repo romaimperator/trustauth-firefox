@@ -44,6 +44,10 @@ var EXPORTED_SYMBOLS = [
   'SALTS',
   'DEMO_SITE_PUBLIC_KEY',
   'DEMO_SITE_PRIVATE_KEY',
+  'IDLE_TIMEOUT_INTERVAL',
+  'KEY_LENGTHS',
+  'EXPONENT',
+  'DEFAULT_KEY_LENGTH',
 ];
 
 var TRUSTAUTH_AJAX_LOADER   = 'chrome://trustauth/skin/ajax-loader.gif';
@@ -98,3 +102,9 @@ var DEMO_SITE_PRIVATE_KEY = "-----BEGIN RSA PRIVATE KEY-----\n" +
 "6OS9XYMvs5uipMMbAkAdhhQFPpIkrxT6zvof6RSMlh+2PzrEfGrxmgug9cLp/8Lu\n" +
 "JXa4T8LWsoaLyQwAR4Xbazy2W+vXkbeSK1m48mHV\n" +
 "-----END RSA PRIVATE KEY-----";
+
+var IDLE_TIMEOUT_INTERVAL = 60; // In seconds
+
+var KEY_LENGTHS = { 1: 1024, 2: 2048, 3: 4096 }; // Lengths in bits
+var EXPONENT    = 3;
+var DEFAULT_KEY_LENGTH = 2048;
