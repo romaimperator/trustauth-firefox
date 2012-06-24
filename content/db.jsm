@@ -323,6 +323,34 @@ var db = {
   },
 
   /**
+   * Replaces both the password key and the encryption key or neither if there is an error.
+   *
+   * @param {hex string} encryption_key the new encryption key to store
+   * @param {hex string} password_key the new password key to store
+   * @return {bool} true on success, false if there was an error
+   */
+  replace_password_and_encryption_keys: function(encryption_key, password_key) {
+    var _this = this;
+    return this._execute_transaction([{
+      sql: "DELETE FROM encryption_key",
+    }, {
+      sql: "DELETE FROM password_verify",
+    }, {
+      sql: "INSERT OR ABORT INTO password_verify (hash) VALUES(:hash)",
+      statement_handler: function(statement) {
+        statement.params.hash = _this.get_storage_hash(password_key);
+        statement.execute();
+      },
+    }, {
+      sql: "INSERT OR ABORT INTO encryption_key (key) VALUES(:key)",
+      statement_handler: function(statement) {
+        statement.params.key = ta_crypto.encrypt_aes(password_key, encryption_key);
+        statement.execute();
+      }
+    }]);
+  },
+
+  /**
    * Resets the database to before any migrations were applied.
    *
    * @return {bool} true on success, false if there was an error
@@ -387,7 +415,7 @@ var db = {
   },
 
   /*
-   * This function stores the key in the browser's password manager
+   * This function stores the password key after hashing if for storage.
    *
    * @param key the key to store
    */
@@ -485,6 +513,39 @@ var db = {
       else { statement.execute(); }
       result = true;
     } catch (e) {
+      utils.dump(e);
+      utils.log(db.lastErrorString);
+    } finally {
+      statement.finalize();
+      db.close();
+    }
+    return result;
+  },
+
+  /**
+   * Executes an array of queries inside of a transaction and rolls back if any one query fails.
+   *
+   * @param {hash} sql_and_handlers an array of hashes containing an sql key and statement_handler key. these are the same as for _execute
+   * @return {bool} true on success, false if there was an error
+   */
+  _execute_transaction: function(sql_and_handlers) {
+    var db = this.connect();
+
+    var result = false;
+    try {
+      db.beginTransaction();
+      for (query in sql_and_handlers) {
+        var sql = sql_and_handlers[query].sql;
+        var statement_handler = sql_and_handlers[query].statement_handler;
+        var statement = db.createStatement(sql);
+        if (statement_handler) { statement_handler(statement, db); }
+        else { statement.execute(); }
+        statement.finalize();
+      }
+      db.commitTransaction();
+      result = true;
+    } catch (e) {
+      db.rollbackTransaction();
       utils.dump(e);
       utils.log(db.lastErrorString);
     } finally {
