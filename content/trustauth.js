@@ -121,6 +121,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     encrypt_login();
     add_trustauth_key();
     set_button_image(TRUSTAUTH_LOGO);
+    set_change_password_status(false);
   };
 
   /**
@@ -144,6 +145,35 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     } else {
       db.associate_key(db.fetch_cache_id(), site_id);
       replenish_cache();
+    }
+  };
+
+  /**
+   * Runs whenever the change password button is clicked. It prompts for a new password and
+   * is responsible for verifying the old one and storing the new one.
+   */
+  var change_password = function() {
+    if (is_unlocked()) {
+      var params = {out:null};
+      var dialog = window.openDialog("chrome://trustauth/content/change_password.xul", "",
+        "chrome, dialog, modal, resizable=no", params).focus();
+      if (params.out) {
+        // User clicked ok. Process changed arguments; e.g. write them to disk or whatever
+        if (verify_password(params.out.old_password) && params.out.new_password !== "") {
+          var new_password_key = ta_crypto.calculate_password_key(params.out.new_password, SALTS['PASSWORD']);
+          var encryption_key   = get_encryption_key();
+          if (db.replace_password_and_encryption_keys(encryption_key, new_password_key)) {
+            this.password_key = new_password_key;
+          } else {
+            log("There was an error changing the master password.");
+          }
+        } else {
+          change_password();
+          return;
+        }
+      } else {
+        // User clicked cancel. Typically, nothing is done here.
+      }
     }
   };
 
@@ -276,6 +306,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   var lock = function() {
     password_key = null;
     set_button_image(TRUSTAUTH_LOGO_DISABLED);
+    set_change_password_status(true);
   }
 
   /**
@@ -477,12 +508,22 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 /* Browser Specific Functions */
 /******************************/
 
+  /**
+   * Sets enabled or disabled on the change password button.
+   *
+   * @param {bool} disabled_status if true the button is disabled, false enabled
+   */
+  var set_change_password_status = function(disabled_status) {
+    document.getElementById(FIREFOX_CHANGE_PASSWORD_ID).setAttribute("disabled", disabled_status);
+  };
+
   /*
    * Initializes the javascript listeners for the buttons on the preference page.
    */
   var init_listener = function() {
     gBrowser.addEventListener("load", on_page_load, true);
-    document.getElementById('trustauth-menu-unlock').addEventListener("click", prompt_or_set_new_password, false);
+    document.getElementById(FIREFOX_UNLOCK_ID).addEventListener("click", prompt_or_set_new_password, false);
+    document.getElementById(FIREFOX_CHANGE_PASSWORD_ID).addEventListener("click", change_password, false);
     gBrowser.addEventListener("mousemove", on_mouse_move, true);
   };
 

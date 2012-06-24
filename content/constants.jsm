@@ -32,6 +32,8 @@ var EXPORTED_SYMBOLS = [
   'TRUSTAUTH_REGISTER_ID',
   'TRUSTAUTH_KEY_ID',
   'FIREFOX_BUTTON_ID',
+  'FIREFOX_UNLOCK_ID',
+  'FIREFOX_CHANGE_PASSWORD_ID',
   'TIMEOUT',
   'HASH_LENGTH',
   'MESSAGE_TYPE',
@@ -58,7 +60,10 @@ var TRUSTAUTH_CHALLENGE_ID = "trustauth-challenge";
 var TRUSTAUTH_RESPONSE_ID  = "trustauth-response";
 var TRUSTAUTH_REGISTER_ID  = "trustauth-register";
 var TRUSTAUTH_KEY_ID       = "trustauth-key";
-var FIREFOX_BUTTON_ID      = 'trustauth-main-button';
+
+var FIREFOX_BUTTON_ID          = 'trustauth-main-button';
+var FIREFOX_UNLOCK_ID          = 'trustauth-menu-unlock';
+var FIREFOX_CHANGE_PASSWORD_ID = 'trustauth-menu-change-password';
 
 var TIMEOUT = 30; // The length of time a message will be valid in seconds
 

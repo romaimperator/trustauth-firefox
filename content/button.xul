@@ -19,7 +19,7 @@
       <menupopup>
         <menuitem id="trustauth-menu-unlock" label="Unlock" oncommand=""/>
         <menuseparator/>
-        <menuitem id="trustauth-menu-change-password" label="Change Password" oncommand=""/>
+        <menuitem disabled="true" id="trustauth-menu-change-password" label="Change Password" oncommand=""/>
       </menupopup>
     </toolbarbutton>
   </toolbarpalette>
