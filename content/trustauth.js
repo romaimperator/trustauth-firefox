@@ -235,6 +235,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 
       utils.get_doc().getElementById(TRUSTAUTH_RESPONSE_ID).value = pack_response({ 'response': data['challenge'], 'hash': data['hash'], 'domain': domain }, private_key);
       utils.enable_child_submit(challenge_element.parentNode);
+      set_icon_on_element(utils.find_parent_form_element(utils.get_doc().getElementById(TRUSTAUTH_RESPONSE_ID)));
     }
   };
 
@@ -513,6 +514,16 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 /******************************/
 /* Browser Specific Functions */
 /******************************/
+
+  var set_icon_on_element = function(element) {
+    var css = "background-image: url('data:image/gif;base64," + BASE64_LOGO + "');" +
+    "background-repeat: no-repeat;" +
+    "background-attachment: scroll;" +
+    "background-position: right center;" +
+    "border: 1px solid #5bb65b";
+    var cur_style = element.hasAttribute("style") ? element.getAttribute("style") : '';
+    element.setAttribute("style", cur_style + css);
+  };
 
   /**
    * Sets enabled or disabled on the change password button.
