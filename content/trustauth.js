@@ -238,16 +238,17 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
       utils.disable_child_submit(challenge_element.parentNode);
       var data = unpack_data(challenge_element.value);
 
-      if (data['time'] + TIMEOUT < utils.get_time()) { log('The challenge has expired. Refresh the page to get a new challenge.'); return; }
-      if (data['hash'] !== data['calculated_hash']) { log('There was an error verifying the integrity of the challenge message.'); return; }
-      if (domain !== data['domain']) { log('Domain did not match.'); return; }
+      if (data['time'] + TIMEOUT < utils.get_time()) { set_problem('The challenge has expired. Refresh the page to get a new challenge.'); return; }
+      if (data['hash'] !== data['calculated_hash']) { set_problem('There was an error verifying the integrity of the challenge message.'); return; }
+      if (domain !== data['domain']) { set_problem('Domain did not match.'); return; }
 
       var keys = ta_crypto.decrypt_keys(db.fetch_key_pair(domain), get_encryption_key());
       var private_key = forge.pki.privateKeyFromPem(keys['private_key']);
 
       utils.get_doc().getElementById(TRUSTAUTH_RESPONSE_ID).value = pack_response({ 'response': data['challenge'], 'hash': data['hash'], 'domain': domain }, private_key);
       utils.enable_child_submit(challenge_element.parentNode);
-      set_icon_on_element(utils.find_parent_form_element(utils.get_doc().getElementById(TRUSTAUTH_RESPONSE_ID)));
+      set_success();
+      setTimeout(timeout_expired, (data['time'] + TIMEOUT - utils.get_time()) * 1000 );
     }
   };
 
@@ -511,6 +512,17 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   };
 
   /**
+   * Removes any TrustAuth tooltips from the document.
+   */
+  var remove_tooltip = function() {
+    var tooltip = utils.get_doc().getElementById("trustauth-tooltip");
+    while (tooltip) {
+      tooltip.parentNode.removeChild(tooltip);
+      tooltip = utils.get_doc().getElementById("trustauth-tooltip");
+    }
+  };
+
+  /**
    * Creates new key pairs for the cache of keys until the CACHE_KEY_COUNT is reached.
    */
   var replenish_cache = function() {
@@ -521,13 +533,32 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     }
   };
 
+  /**
+   * Performs the actions necessary to show the user that there was a problem. This includes
+   * changing the form's border and adding a tooltip.
+   *
+   * @param {string} error the error message to display in the tooltip
+   */
+  var set_problem = function(error) {
+    var element = utils.find_parent_form_element(utils.get_doc().getElementById(TRUSTAUTH_RESPONSE_ID));
 
+    element.addEventListener("mouseenter", function(event) { tooltip_hover(event, error); }, false);
+    element.addEventListener("mouseleave", tooltip_unhover, false);
 
-/******************************/
-/* Browser Specific Functions */
-/******************************/
+    var css = "background-image: url('data:image/gif;base64," + BASE64_LOGO_DISABLED + "');" +
+    "background-repeat: no-repeat;" +
+    "background-attachment: scroll;" +
+    "background-position: right center;" +
+    "border: 1px solid #c01f2f";
+    element.setAttribute("style", css);
+  };
 
-  var set_icon_on_element = function(element) {
+  /**
+   * Performs the actions necessary to show the user that the work was successful. This includes changing
+   * the form's border and adding the logo.
+   */
+  var set_success = function() {
+    var element = utils.find_parent_form_element(utils.get_doc().getElementById(TRUSTAUTH_RESPONSE_ID));
     var css = "background-image: url('data:image/gif;base64," + BASE64_LOGO + "');" +
     "background-repeat: no-repeat;" +
     "background-attachment: scroll;" +
@@ -536,6 +567,70 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     var cur_style = element.hasAttribute("style") ? element.getAttribute("style") : '';
     element.setAttribute("style", cur_style + css);
   };
+
+  /**
+   * Is triggered after the timeout from the challenge message has expired.
+   */
+  var timeout_expired = function() {
+    set_problem("Challenge timeout expired. Refresh the page to get a new challenge.");
+  };
+
+  /**
+   * Is triggered whenever the mouse enters the element. It possitions a tooltip containing
+   * the message where the mouse is. Removes any existing tooltips to prevent duplicates.
+   *
+   * @param {MouseEvent} event the event from the mouse moving
+   * @param {string} message the message to put in the tooltip
+   */
+  var tooltip_hover = function(event, message) {
+    // Don't add the tooltip if we're moving out from it
+    if (event.relatedTarget.getAttribute("id") === "trustauth-tooltip") { return; }
+
+    // Remove any tooltips that may still exist
+    remove_tooltip();
+
+    var tooltip = utils.get_doc().createElement("div");
+    tooltip.appendChild(utils.get_doc().createTextNode(message));
+    tooltip.setAttribute("id", "trustauth-tooltip");
+    tooltip.setAttribute("style", "position: fixed;" +
+                        "left: " + event.clientX + "px;" +
+                        "top: " + event.clientY + "px;" +
+                        "padding: 7px 7px 7px 7px;" +
+                        //"border: 1px solid #c01f2f;" +
+                        "-webkit-box-shadow: 3px 3px 5px 0px #000;" +
+                        "box-shadow: 3px 3px 5px 0px #000;" +
+                        "-webkit-border-radius: 5px;" +
+                        "border-radius: 5px;" +
+                        "font-weight: bold;" +
+                        "color: #c01f2f;" +
+                        "background: rgb(239,239,239);" +
+                        "background: -moz-linear-gradient(top, rgba(239,239,239,1) 0%, rgba(196,196,196,1) 100%);" +
+                        "background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(239,239,239,1)), color-stop(100%,rgba(196,196,196,1)));" +
+                        "background: -webkit-linear-gradient(top, rgba(239,239,239,1) 0%,rgba(196,196,196,1) 100%);" +
+                        "background: -o-linear-gradient(top, rgba(239,239,239,1) 0%,rgba(196,196,196,1) 100%);" +
+                        "background: -ms-linear-gradient(top, rgba(239,239,239,1) 0%,rgba(196,196,196,1) 100%);" +
+                        "background: linear-gradient(top, rgba(239,239,239,1) 0%,rgba(196,196,196,1) 100%);" +
+                        "filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#efefef', endColorstr='#c4c4c4',GradientType=0 );");
+    utils.get_doc().getElementsByTagName("body")[0].appendChild(tooltip);
+  };
+
+  /**
+   * Is triggered whenever the mouse leaves the element. It removes any tooltips that exist.
+   *
+   * @param {MouseEvent} event the mouse event that triggered this
+   */
+  var tooltip_unhover = function(event) {
+    // Don't remove the tooltip if we're hovering over it
+    if (event.relatedTarget.getAttribute("id") === "trustauth-tooltip") { return; }
+
+    remove_tooltip();
+  };
+
+
+
+/******************************/
+/* Browser Specific Functions */
+/******************************/
 
   /**
    * Sets enabled or disabled on the change password button.
