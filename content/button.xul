@@ -18,6 +18,8 @@
       class="toolbarbutton-1 chromeclass-toolbar-additional trustauth-button">
       <menupopup>
         <menuitem id="trustauth-menu-unlock" label="Unlock" oncommand=""/>
+        <menuseparator/>
+        <menuitem disabled="true" id="trustauth-menu-change-password" label="Change Password" oncommand=""/>
       </menupopup>
     </toolbarbutton>
   </toolbarpalette>

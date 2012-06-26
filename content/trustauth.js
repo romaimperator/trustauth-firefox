@@ -117,10 +117,11 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    * Executes after the addon is unlocked. Used to encrypt the login challenge and bind the button.
    */
   var after_unlock = function() {
-    replenish_cache();
     encrypt_login();
     add_trustauth_key();
     set_button_image(TRUSTAUTH_LOGO);
+    set_change_password_status(false);
+    replenish_cache(); // Needs to be last since it is not asynchronous
   };
 
   /**
@@ -144,6 +145,41 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     } else {
       db.associate_key(db.fetch_cache_id(), site_id);
       replenish_cache();
+    }
+  };
+
+  /**
+   * Runs whenever the change password button is clicked. It prompts for a new password and
+   * is responsible for verifying the old one and storing the new one.
+   */
+  var change_password = function(event, message) {
+    if (is_unlocked()) {
+      message = utils.isset(message) ? {old:'','new':''} : message;
+      var params = {'in': message, out:null};
+      window.openDialog("chrome://trustauth/content/change_password.xul", "",
+        "chrome, dialog, modal, resizable=no", params).focus();
+      if (params.out) {
+        // User clicked ok. Process changed arguments;
+        var verified_password = verify_password(params.out.old_password);
+        if (verified_password && params.out.new_password !== "") {
+          var new_password_key   = ta_crypto.calculate_password_key(params.out.new_password, SALTS['PASSWORD']);
+          var old_encryption_key = get_encryption_key();
+          if (db.replace_password_and_encryption_keys(old_encryption_key, new_password_key)) {
+            password_key   = new_password_key;
+            encryption_key = null;
+          } else {
+            log("There was an error changing the master password.");
+          }
+        } else if ( ! verified_password) {
+          change_password(event, {'old':'trustauth-error'});
+          return;
+        } else {
+          change_password(event, {'new':'trustauth-error'});
+          return;
+        }
+      } else {
+        // User clicked cancel. Typically, nothing is done here.
+      }
     }
   };
 
@@ -185,7 +221,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 
       var domain = utils.get_form_hostname(get_login_form());
 
-      if ( ! db.domain_exist(domain)) { log("No key for this domain."); set_button_image(TRUSTAUTH_BUTTON); return; }
+      if ( ! db.domain_exist(domain)) { log("No key for this domain."); return; }
 
       utils.disable_child_submit(challenge_element.parentNode);
       var data = unpack_data(challenge_element.value);
@@ -276,6 +312,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   var lock = function() {
     password_key = null;
     set_button_image(TRUSTAUTH_LOGO_DISABLED);
+    set_change_password_status(true);
   }
 
   /**
@@ -477,12 +514,22 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 /* Browser Specific Functions */
 /******************************/
 
+  /**
+   * Sets enabled or disabled on the change password button.
+   *
+   * @param {bool} disabled_status if true the button is disabled, false enabled
+   */
+  var set_change_password_status = function(disabled_status) {
+    document.getElementById(FIREFOX_CHANGE_PASSWORD_ID).setAttribute("disabled", disabled_status);
+  };
+
   /*
    * Initializes the javascript listeners for the buttons on the preference page.
    */
   var init_listener = function() {
     gBrowser.addEventListener("load", on_page_load, true);
-    document.getElementById('trustauth-menu-unlock').addEventListener("click", prompt_or_set_new_password, false);
+    document.getElementById(FIREFOX_UNLOCK_ID).addEventListener("click", prompt_or_set_new_password, false);
+    document.getElementById(FIREFOX_CHANGE_PASSWORD_ID).addEventListener("click", change_password, false);
     gBrowser.addEventListener("mousemove", on_mouse_move, true);
   };
 
