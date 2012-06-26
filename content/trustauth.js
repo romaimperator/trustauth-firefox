@@ -152,10 +152,11 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    * Runs whenever the change password button is clicked. It prompts for a new password and
    * is responsible for verifying the old one and storing the new one.
    */
-  var change_password = function() {
+  var change_password = function(event, message) {
     if (is_unlocked()) {
-      var params = {out:null};
-      var dialog = window.openDialog("chrome://trustauth/content/change_password.xul", "",
+      message = utils.isset(message) ? {old:'','new':''} : message;
+      var params = {'in': message, out:null};
+      window.openDialog("chrome://trustauth/content/change_password.xul", "",
         "chrome, dialog, modal, resizable=no", params).focus();
       if (params.out) {
         // User clicked ok. Process changed arguments; e.g. write them to disk or whatever
