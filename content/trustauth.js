@@ -159,17 +159,22 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
       window.openDialog("chrome://trustauth/content/change_password.xul", "",
         "chrome, dialog, modal, resizable=no", params).focus();
       if (params.out) {
-        // User clicked ok. Process changed arguments; e.g. write them to disk or whatever
-        if (verify_password(params.out.old_password) && params.out.new_password !== "") {
-          var new_password_key = ta_crypto.calculate_password_key(params.out.new_password, SALTS['PASSWORD']);
-          var encryption_key   = get_encryption_key();
-          if (db.replace_password_and_encryption_keys(encryption_key, new_password_key)) {
-            this.password_key = new_password_key;
+        // User clicked ok. Process changed arguments;
+        var verified_password = verify_password(params.out.old_password);
+        if (verified_password && params.out.new_password !== "") {
+          var new_password_key   = ta_crypto.calculate_password_key(params.out.new_password, SALTS['PASSWORD']);
+          var old_encryption_key = get_encryption_key();
+          if (db.replace_password_and_encryption_keys(old_encryption_key, new_password_key)) {
+            password_key   = new_password_key;
+            encryption_key = null;
           } else {
             log("There was an error changing the master password.");
           }
+        } else if ( ! verified_password) {
+          change_password(event, {'old':'trustauth-error'});
+          return;
         } else {
-          change_password();
+          change_password(event, {'new':'trustauth-error'});
           return;
         }
       } else {
