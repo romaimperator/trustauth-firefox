@@ -183,7 +183,6 @@ var utils = {
    * @return {HTML elemnt} the parent form element or null if one wasn't found
    */
   find_parent_form_element: function(element) {
-    this.log('name: ' + element.tagName);
     if (element.tagName === 'FORM') {
       return element;
     } else if (element.parentNode === null) {
