@@ -92,24 +92,36 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   var add_trustauth_key = function() {
     if (is_unlocked()) {
       var register_element = utils.get_doc().getElementById(TRUSTAUTH_KEY_ID);
+      var challenge_element = utils.get_doc().getElementById(TRUSTAUTH_CHALLENGE_ID);
 
-      if (register_element) {
-        utils.disable_child_submit(register_element.parentNode);
+      if ( ! register_element) { return ; } // No register element on the page
 
-        var domain = utils.get_domain();
-        if (db.domain_exist(domain)) {
-          log("inserting key...");
+      utils.disable_child_submit(register_element.parentNode);
+
+      var domain = utils.get_domain();
+      if (db.domain_exist(domain)) {
+        log("inserting key...");
+        insert_key();
+        utils.enable_child_submit(register_element.parentNode);
+      } else {
+        assign_pair_and_replace(domain, function() {
           insert_key();
           utils.enable_child_submit(register_element.parentNode);
-        } else {
-          assign_pair_and_replace(domain, function() {
-            insert_key();
-            utils.enable_child_submit(register_element.parentNode);
-          });
-        }
-      } else {
-        // No register element on the page
+        });
       }
+    }
+  };
+
+  var add_trustauth_key_listener = function() {
+    if ( ! is_unlocked()) { return; }
+
+    var button = utils.get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
+    log(button);
+
+    if (button) {
+      button.addEventListener("click", add_trustauth_key, false);
+    } else {
+      add_trustauth_key();
     }
   };
 
@@ -118,7 +130,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    */
   var after_unlock = function() {
     encrypt_login();
-    add_trustauth_key();
+    add_trustauth_key_listener();
     set_button_image(TRUSTAUTH_LOGO);
     set_change_password_status(false);
     replenish_cache(); // Needs to be last since it is not asynchronous
@@ -367,7 +379,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
         return;
       } else {
         if (is_unlocked()) {
-          add_trustauth_key();
+          add_trustauth_key_listener();
           encrypt_login();
         }
       }
