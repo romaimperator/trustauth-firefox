@@ -221,7 +221,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 
       var domain = utils.get_form_hostname(get_login_form());
 
-      if ( ! db.domain_exist(domain)) { log("No key for this domain."); set_button_image(TRUSTAUTH_BUTTON); return; }
+      if ( ! db.domain_exist(domain)) { log("No key for this domain."); return; }
 
       utils.disable_child_submit(challenge_element.parentNode);
       var data = unpack_data(challenge_element.value);
