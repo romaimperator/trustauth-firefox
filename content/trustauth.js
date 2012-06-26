@@ -116,7 +116,6 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     if ( ! is_unlocked()) { return; }
 
     var button = utils.get_doc().getElementById(TRUSTAUTH_REGISTER_ID);
-    log(button);
 
     if (button) {
       button.addEventListener("click", add_trustauth_key, false);
