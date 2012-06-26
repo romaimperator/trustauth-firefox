@@ -132,7 +132,7 @@ var ta_crypto = {
    * @return {hex string} the 256-bit hex encryption key
    */
   generate_encryption_key: function() {
-    return forge.random.getBytes(ENCRYPTION_KEY_LENGTH);
+    return forge.util.bytesToHex(forge.random.getBytes(ENCRYPTION_KEY_LENGTH));
   },
 
 };
