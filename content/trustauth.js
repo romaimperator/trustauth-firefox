@@ -117,11 +117,11 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    * Executes after the addon is unlocked. Used to encrypt the login challenge and bind the button.
    */
   var after_unlock = function() {
-    replenish_cache();
     encrypt_login();
     add_trustauth_key();
     set_button_image(TRUSTAUTH_LOGO);
     set_change_password_status(false);
+    replenish_cache(); // Needs to be last since it is not asynchronous
   };
 
   /**
