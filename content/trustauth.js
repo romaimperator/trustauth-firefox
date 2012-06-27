@@ -788,6 +788,23 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   };
 
   /**
+   * Shows a doorhanger notification to the user for timeout milliseconds.
+   *
+   * @param {string} message the message to show the user
+   * @param {integer} timeout the length of time to show the notification before hiding in milliseconds
+   */
+  var show_notification = function(message, timeout) {
+    var notif = PopupNotifications.show(gBrowser.selectedBrowser, "sample-popup",
+      message,
+      null, /* anchor ID */
+      null  /* secondary action */
+      );
+    setTimeout(function(){
+      notif.remove();
+    }, timeout);
+  };
+
+  /**
    * Verifies that the password given is the correct password.
    *
    * @param {string} password the password to check
