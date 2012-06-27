@@ -1,0 +1,3 @@
+.popup-notification-icon[popupid="sample-popup"] {
+  list-style-image: url("chrome://trustauth/skin/logo_small_64.png");
+}

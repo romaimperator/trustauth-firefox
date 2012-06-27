@@ -131,7 +131,12 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     encrypt_login();
     add_trustauth_key_listener();
     set_button_image(TRUSTAUTH_LOGO);
-    set_change_password_status(false);
+    add_listener(FIREFOX_CHANGE_PASSWORD_ID, "click", change_password);
+    add_listener(FIREFOX_IMPORT_ENCRYPTED_ID, "click", function anon_import() { import_encrypted_database(); });
+    add_listener(FIREFOX_EXPORT_ENCRYPTED_ID, "click", function anon_export() { export_encrypted_database(); });
+    set_disabled_status(FIREFOX_CHANGE_PASSWORD_ID, false);
+    set_disabled_status(FIREFOX_IMPORT_ENCRYPTED_ID, false);
+    set_disabled_status(FIREFOX_EXPORT_ENCRYPTED_ID, false);
     replenish_cache(); // Needs to be last since it is not asynchronous
   };
 
@@ -325,7 +330,12 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   var lock = function() {
     password_key = null;
     set_button_image(TRUSTAUTH_LOGO_DISABLED);
-    set_change_password_status(true);
+    remove_listener(FIREFOX_CHANGE_PASSWORD_ID, "click", change_password);
+    remove_listener(FIREFOX_IMPORT_ENCRYPTED_ID, "click", anon_import);
+    remove_listener(FIREFOX_EXPORT_ENCRYPTED_ID, "click", anon_export);
+    set_disabled_status(FIREFOX_CHANGE_PASSWORD_ID, true);
+    set_disabled_status(FIREFOX_IMPORT_ENCRYPTED_ID, true);
+    set_disabled_status(FIREFOX_EXPORT_ENCRYPTED_ID, true);
   }
 
   /**
@@ -506,7 +516,12 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     if (db.is_password_set()) {
       prompt_password();
     } else {
-      prompt_new_password();
+      if (prompt_import_database()) {
+        import_encrypted_database(true);
+        prompt_password();
+      } else {
+        prompt_new_password();
+      }
     }
   };
 
@@ -595,7 +610,6 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
                         "left: " + event.clientX + "px;" +
                         "top: " + event.clientY + "px;" +
                         "padding: 7px 7px 7px 7px;" +
-                        //"border: 1px solid #c01f2f;" +
                         "-webkit-box-shadow: 3px 3px 5px 0px #000;" +
                         "box-shadow: 3px 3px 5px 0px #000;" +
                         "-webkit-border-radius: 5px;" +
@@ -632,21 +646,80 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 /******************************/
 
   /**
-   * Sets enabled or disabled on the change password button.
+   * Adds the event listener to the element.
    *
-   * @param {bool} disabled_status if true the button is disabled, false enabled
+   * @param {string} id the id of the element to add the listener to
+   * @param {string} event the name of the event to listen for
+   * @param {function} func the function to handle the event
    */
-  var set_change_password_status = function(disabled_status) {
-    document.getElementById(FIREFOX_CHANGE_PASSWORD_ID).setAttribute("disabled", disabled_status);
+  var add_listener = function(id, event, func) {
+    var element = document.getElementById(id);
+    if (element) {
+      element.addEventListener(event, func, false);
+    }
   };
+
+  /**
+   * Handles exporting a database from the add-on.
+   */
+  var export_encrypted_database = function() {
+    if ( ! is_unlocked()) { return; }
+
+    var output_file = open_dialog(true);
+    if (output_file) {
+      Components.utils.import("resource://gre/modules/FileUtils.jsm");
+      var file = FileUtils.getFile("ProfD", ["trustauth", "trustauth.sqlite"]);
+      var ext = (output_file.leafName.substr(-4, 4) === '.tdb') ? '' : '.tdb';
+      file.copyTo(output_file.parent, output_file.leafName + ext);
+      show_notification("Database successfully exported!", 3000);
+    }
+  };
+
+  /**
+   * Handles importing a database to the add-on.
+   *
+   * @param {bool} initial_import if true the database overwrite warning is not displayed reguardless of the preference
+   */
+  var import_encrypted_database = function(initial_import) {
+    initial_import = (utils.isset(initial_import)) ? initial_import : false;
+
+    if ( ! is_unlocked() && ! initial_import) { return; }
+
+    // Check if the user should be notified of the overwrite
+    if ( ! initial_import && prefs.get_b_pref("inform_database_overwrite")) {
+      var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+                          .getService(Components.interfaces.nsIPromptService);
+      var check = {value: false};
+      var result = prompts.confirmCheck(null,
+                                        "Your existing database will be overwritten!",
+                                        "If you choose to import a database, your existing database will be replaced." +
+                                        " If you want to save it hit cancel and export it first. Afterwards import the new database."
+                                        , "Don't show again", check);
+      prefs.set_b_pref("inform_database_overwrite", !check.value);
+      if ( ! result) { return; }
+    }
+
+    var input_file = open_dialog(false);
+    if (input_file) {
+      Components.utils.import("resource://gre/modules/FileUtils.jsm");
+      var output_file = FileUtils.getFile("ProfD", ["trustauth", "trustauth.sqlite"]);
+      input_file.copyTo(output_file.parent, output_file.leafName);
+
+      // Update the salts
+      SALTS['ENC_KEY'] = db.fetch_or_store_salt(SALT_IDS['ENC_KEY']);
+      SALTS['STORAGE'] = db.fetch_or_store_salt(SALT_IDS['STORAGE']);
+      SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
+
+      show_notification("Database successfully imported!", 3000);
+    }
+  }
 
   /*
    * Initializes the javascript listeners for the buttons on the preference page.
    */
   var init_listener = function() {
     gBrowser.addEventListener("load", on_page_load, true);
-    document.getElementById(FIREFOX_UNLOCK_ID).addEventListener("click", prompt_or_set_new_password, false);
-    document.getElementById(FIREFOX_CHANGE_PASSWORD_ID).addEventListener("click", change_password, false);
+    add_listener(FIREFOX_UNLOCK_ID, "click", prompt_or_set_new_password);
     gBrowser.addEventListener("mousemove", on_mouse_move, true);
   };
 
@@ -678,6 +751,51 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
         toolbar.collapsed = false;
     }
   };
+
+  /**
+   * Opens a dialog to select an output or input TrustAuth database file.
+   *
+   * @param {bool} open_save if true opens a save dialog, if false opens an open dialog
+   * @return {nsILocalFile} the file picked by the user
+   */
+  var open_dialog = function(open_save) {
+    var nsIFilePicker = Components.interfaces.nsIFilePicker;
+    var fp = Components.classes["@mozilla.org/filepicker;1"].createInstance(nsIFilePicker);
+
+    var mode = (open_save) ? nsIFilePicker.modeSave : nsIFilePicker.modeOpen;
+    var message = (open_save) ? "Select a place to save the database:" : "Select a database to import:";
+
+    fp.init(window, message, mode);
+    fp.appendFilter("TrustAuth Database", "*.tdb");
+
+    var res = fp.show();
+    if (res != nsIFilePicker.returnCancel) {
+      return fp.file;
+    } else {
+      return null;
+    }
+  };
+
+  /**
+   * Asks the user if they want to import an existing database or to create a new one.
+   */
+  var prompt_import_database = function() {
+    var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+                            .getService(Components.interfaces.nsIPromptService);
+
+    var check = {value: false}; // default the checkbox to false
+
+    var flags = prompts.BUTTON_POS_0 * prompts.BUTTON_TITLE_YES +
+                prompts.BUTTON_POS_1 * prompts.BUTTON_TITLE_CANCEL  +
+                prompts.BUTTON_POS_2 * prompts.BUTTON_TITLE_NO;
+
+    var button = prompts.confirmEx(null, "New Database!",
+                                   "It appears you don't currently have a TrustAuth database. Would you like to import one? If not one will be created for you.",
+                                   flags, "", "", "", null, check);
+
+    // The checkbox will be hidden, and button will contain the index of the button pressed 0, 1, or 2.
+    return (button === 0); // Return true only if they selected yes
+};
 
   /*
    * Prompts the user to enter a new master password.
@@ -725,6 +843,20 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     return false;
   };
 
+  /**
+   * Removes the event listener from the element.
+   *
+   * @param {string} id the id of the element to remove the listener from
+   * @param {string} event the name of the event to listen for
+   * @param {function} func the function to handle the event
+   */
+  var remove_listener = function(id, event, func) {
+    var element = document.getElementById(id);
+    if (element) {
+      element.removeEventListener(event, func, false);
+    }
+  };
+
   /*
    * This function sets the button image on the toolbar.
    *
@@ -732,6 +864,32 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    */
   var set_button_image = function(image) {
     document.getElementById(FIREFOX_BUTTON_ID).setAttribute('image', image);
+  };
+
+  /**
+   * Sets enabled or disabled on the change password button.
+   *
+   * @param {bool} disabled_status if true the button is disabled, false enabled
+   */
+  var set_disabled_status = function(id, disabled_status) {
+    document.getElementById(id).setAttribute("disabled", disabled_status);
+  };
+
+  /**
+   * Shows a doorhanger notification to the user for timeout milliseconds.
+   *
+   * @param {string} message the message to show the user
+   * @param {integer} timeout the length of time to show the notification before hiding in milliseconds
+   */
+  var show_notification = function(message, timeout) {
+    var notif = PopupNotifications.show(gBrowser.selectedBrowser, "sample-popup",
+      message,
+      null, /* anchor ID */
+      null  /* secondary action */
+      );
+    setTimeout(function(){
+      notif.remove();
+    }, timeout);
   };
 
   /**
