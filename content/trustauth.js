@@ -685,6 +685,30 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     }
   };
 
+  /**
+   * Opens a dialog to select an output or input TrustAuth database file.
+   *
+   * @param {bool} open_save if true opens a save dialog, if false opens an open dialog
+   * @return {nsILocalFile} the file picked by the user
+   */
+  var open_dialog = function(open_save) {
+    var nsIFilePicker = Components.interfaces.nsIFilePicker;
+    var fp = Components.classes["@mozilla.org/filepicker;1"].createInstance(nsIFilePicker);
+
+    var mode = (open_save) ? nsIFilePicker.modeSave : nsIFilePicker.modeOpen;
+    var message = (open_save) ? "Select a place to save the database:" : "Select a database to import:";
+
+    fp.init(window, message, mode);
+    fp.appendFilter("TrustAuth Database", "*.tdb");
+
+    var res = fp.show();
+    if (res != nsIFilePicker.returnCancel) {
+      return fp.file;
+    } else {
+      return null;
+    }
+  };
+
   /*
    * Prompts the user to enter a new master password.
    *
