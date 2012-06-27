@@ -131,7 +131,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     encrypt_login();
     add_trustauth_key_listener();
     set_button_image(TRUSTAUTH_LOGO);
-    set_change_password_status(false);
+    set_disabled_status(FIREFOX_CHANGE_PASSWORD_ID, false);
     replenish_cache(); // Needs to be last since it is not asynchronous
   };
 
@@ -325,7 +325,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   var lock = function() {
     password_key = null;
     set_button_image(TRUSTAUTH_LOGO_DISABLED);
-    set_change_password_status(true);
+    set_disabled_status(FIREFOX_CHANGE_PASSWORD_ID, true);
   }
 
   /**
@@ -631,15 +631,6 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 /* Browser Specific Functions */
 /******************************/
 
-  /**
-   * Sets enabled or disabled on the change password button.
-   *
-   * @param {bool} disabled_status if true the button is disabled, false enabled
-   */
-  var set_change_password_status = function(disabled_status) {
-    document.getElementById(FIREFOX_CHANGE_PASSWORD_ID).setAttribute("disabled", disabled_status);
-  };
-
   /*
    * Initializes the javascript listeners for the buttons on the preference page.
    */
@@ -732,6 +723,15 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
    */
   var set_button_image = function(image) {
     document.getElementById(FIREFOX_BUTTON_ID).setAttribute('image', image);
+  };
+
+  /**
+   * Sets enabled or disabled on the change password button.
+   *
+   * @param {bool} disabled_status if true the button is disabled, false enabled
+   */
+  var set_disabled_status = function(id, disabled_status) {
+    document.getElementById(id).setAttribute("disabled", disabled_status);
   };
 
   /**
