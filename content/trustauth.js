@@ -595,7 +595,6 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
                         "left: " + event.clientX + "px;" +
                         "top: " + event.clientY + "px;" +
                         "padding: 7px 7px 7px 7px;" +
-                        //"border: 1px solid #c01f2f;" +
                         "-webkit-box-shadow: 3px 3px 5px 0px #000;" +
                         "box-shadow: 3px 3px 5px 0px #000;" +
                         "-webkit-border-radius: 5px;" +
