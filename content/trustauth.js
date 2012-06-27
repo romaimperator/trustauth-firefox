@@ -131,6 +131,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     encrypt_login();
     add_trustauth_key_listener();
     set_button_image(TRUSTAUTH_LOGO);
+    add_listener(FIREFOX_CHANGE_PASSWORD_ID, "click", change_password);
     set_disabled_status(FIREFOX_CHANGE_PASSWORD_ID, false);
     replenish_cache(); // Needs to be last since it is not asynchronous
   };
@@ -325,6 +326,7 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
   var lock = function() {
     password_key = null;
     set_button_image(TRUSTAUTH_LOGO_DISABLED);
+    remove_listener(FIREFOX_CHANGE_PASSWORD_ID, "click", change_password);
     set_disabled_status(FIREFOX_CHANGE_PASSWORD_ID, true);
   }
 
@@ -630,12 +632,26 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
 /* Browser Specific Functions */
 /******************************/
 
+  /**
+   * Adds the event listener to the element.
+   *
+   * @param {string} id the id of the element to add the listener to
+   * @param {string} event the name of the event to listen for
+   * @param {function} func the function to handle the event
+   */
+  var add_listener = function(id, event, func) {
+    var element = document.getElementById(id);
+    if (element) {
+      element.addEventListener(event, func, false);
+    }
+  };
+
   /*
    * Initializes the javascript listeners for the buttons on the preference page.
    */
   var init_listener = function() {
     gBrowser.addEventListener("load", on_page_load, true);
-    document.getElementById(FIREFOX_UNLOCK_ID).addEventListener("click", prompt_or_set_new_password, false);
+    add_listener(FIREFOX_UNLOCK_ID, "click", prompt_or_set_new_password);
     document.getElementById(FIREFOX_CHANGE_PASSWORD_ID).addEventListener("click", change_password, false);
     gBrowser.addEventListener("mousemove", on_mouse_move, true);
   };
@@ -713,6 +729,20 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
       return true;
     }
     return false;
+  };
+
+  /**
+   * Removes the event listener from the element.
+   *
+   * @param {string} id the id of the element to remove the listener from
+   * @param {string} event the name of the event to listen for
+   * @param {function} func the function to handle the event
+   */
+  var remove_listener = function(id, event, func) {
+    var element = document.getElementById(id);
+    if (element) {
+      element.removeEventListener(event, func, false);
+    }
   };
 
   /*
