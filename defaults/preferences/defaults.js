@@ -1,3 +1,5 @@
 pref("extensions.trustauth.first_run", true);
-pref("extensions.trustauth.key_length", 1024);
+pref("extensions.trustauth.key_length", 2);
 pref("extensions.trustauth.exponent", 3);
+pref("extensions.trustauth.idle_timeout", 900);
+pref("extensions.trustauth.inform_database_overwrite", true);

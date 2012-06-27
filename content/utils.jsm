@@ -92,14 +92,9 @@ var utils = {
    * @param {HTMLElement} parent the element containing submit buttons to disable
    */
   disable_child_submit: function(parent) {
-    var buttons = [parent.getElementsByTagName("button"), parent.getElementsByTagName("submit")];
-
-    for (i in buttons) {
-      for (var j = 0; j < buttons[i].length; j++) {
-        if (buttons[i][j].getAttribute("type") == "submit") {
-          buttons[i][j].disabled = true;
-        }
-      }
+    var child_submit = this.find_child_submit_element(parent);
+    if (child_submit) {
+      child_submit.disabled = true;
     }
   },
 
@@ -123,14 +118,9 @@ var utils = {
    * @param {HTMLElement} parent the element containing submit buttons to enable
    */
   enable_child_submit: function(parent) {
-    var buttons = [parent.getElementsByTagName("button"), parent.getElementsByTagName("submit")];
-
-    for (i in buttons) {
-      for (var j = 0; j < buttons[i].length; j++) {
-        if (buttons[i][j].getAttribute("type") == "submit") {
-          buttons[i][j].disabled = false;
-        }
-      }
+    var child_submit = this.find_child_submit_element(parent);
+    if (child_submit) {
+      child_submit.disabled = false;
     }
   },
 
@@ -165,6 +155,41 @@ var utils = {
       retval += tmp;
     }
     return retval;
+  },
+
+  /**
+   * Returns the first submit button element that is a child of the root_element.
+   *
+   * @param {HTML element} root_element the root element to search through
+   * @return {HTML element} the submit element or null if one wasn't found
+   */
+  find_child_submit_element: function(root_element) {
+    var buttons = [root_element.getElementsByTagName("button"), root_element.getElementsByTagName("submit"), root_element.getElementsByTagName("input")];
+
+    for (i in buttons) {
+      for (var j = 0; j < buttons[i].length; j++) {
+        if (buttons[i][j].getAttribute("type") == "submit") {
+          return buttons[i][j];
+        }
+      }
+    }
+    return null;
+  },
+
+  /**
+   * Returns the first element that is a parent of root element and is a form tag.
+   *
+   * @param {HTML element} element the element to start from
+   * @return {HTML elemnt} the parent form element or null if one wasn't found
+   */
+  find_parent_form_element: function(element) {
+    if (element.tagName === 'FORM') {
+      return element;
+    } else if (element.parentNode === null) {
+      return null;
+    } else {
+      return this.find_parent_form_element(element.parentNode);
+    }
   },
 
   /**

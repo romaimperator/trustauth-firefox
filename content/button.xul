@@ -14,10 +14,16 @@
       type="menu"
       oncontextmenu=""
       orient="horizontal"
-      image="chrome://trustauth/skin/button.png"
+      image="chrome://trustauth/skin/logo_small_shorter_disabled_22.png"
       class="toolbarbutton-1 chromeclass-toolbar-additional trustauth-button">
       <menupopup>
         <menuitem id="trustauth-menu-unlock" label="Unlock" oncommand=""/>
+        <menuseparator/>
+        <menuitem disabled="true" id="trustauth-menu-change-password" label="Change Password" oncommand=""/>
+        <menuseparator/>
+        <menuitem disabled="true" label="Encrypted Database"/>
+        <menuitem disabled="true" id="trustauth-menu-import-encrypted" label="Import"/>
+        <menuitem disabled="true" id="trustauth-menu-export-encrypted" label="Export"/>
       </menupopup>
     </toolbarbutton>
   </toolbarpalette>

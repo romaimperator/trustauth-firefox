@@ -6,7 +6,7 @@
 
     <em:id>trustauth@trustauth.com</em:id>
     <em:name>TrustAuth</em:name>
-    <em:version>1.0.2</em:version>
+    <em:version>1.1.0</em:version>
     <em:type>2</em:type>
     <em:description>This extension enables use of public key cryptography to log into a website.</em:description>
     <em:creator>Daniel Fox</em:creator>
@@ -14,7 +14,8 @@
     <em:homepageURL>http://trustauth.com/</em:homepageURL>
     <em:optionsURL>chrome://trustauth/content/options.xul</em:optionsURL>
     <em:optionsType>2</em:optionsType>
-    <em:iconURL>chrome://trustauth/skin/icon.png</em:iconURL>
+    <em:iconURL>chrome://trustauth/skin/logo_small_48.png</em:iconURL>
+    <em:icon64URL>chrome://trustauth/skin/logo_small_64.png</em:icon64URL>
     <!--em:optionsURL>chrome://sampleext/content/settings.xul</em:optionsURL>
     <em:aboutURL>chrome://sampleext/content/about.xul</em:aboutURL>
     <em:updateURL>http://sampleextension.mozdev.org/update.rdf</em:updateURL-->
@@ -23,7 +24,7 @@
     <em:targetApplication>
       <Description>
         <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id>
-        <em:minVersion>4.0.*</em:minVersion>
+        <em:minVersion>7.*</em:minVersion>
         <em:maxVersion>13.*</em:maxVersion>
       </Description>
     </em:targetApplication>

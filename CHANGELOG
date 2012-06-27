@@ -1,3 +1,46 @@
+2012-06-27  Daniel Fox  <romaimperator@gmail.com>
+		Release 1.1.0
+		* The add-on now has a new icon!
+		* The add-on should load the Forge library properly.
+		* The Forge library has been updated to the latest version.
+		* Adding a new icon for the add-on.
+		* The button is now grayed out when it is locked.
+		* The button returns to normal when the add-on is unlocked.
+		* The button is now correctly added to the toolbar after install.
+		* The add-on will now automatically relock after being idle for a
+		configurable timeout.
+		* The minimum version number has been bumped to 4.0 because of the inline
+		options page.
+		* The inline options page has been cleaned up leaving only important
+		settings and clearly showing which options are advanced.
+		* The user can now choose a key length from a fixed list of key lengths.
+		* The user can now change her master password after the add-on asks for
+		the current password.
+		* The add-on will now show a green border and the add-on icon around the
+		login form after a successful preparation.
+		* The add-on will change the border to red and provide a tooltip on hover
+		over the login form indicating what the error is.
+		* The add-on will alert the user if the server's timeout has passed so the
+		user knows to refresh the page.
+		* The add-on now honors the Add TrustAuth Key button. More specifically,
+		if the page contains the button, the key is ONLY inserted when the button
+		is pressed. If there is no button and the page contains a login form with
+		TrustAuth fields then the key is still automatically inserted.
+		* The user can now export and import a copy of the encrypted database. The
+		user is prompted for a name for the exported database and the extension
+		'.tdb' is appended if not already there. The user can import an existing
+		database but only after being notified that importing a database will
+		overwrite the existing database. This notification can be turned off. The
+		user can only import a database if the add-on is unlocked to prevent
+		someone's database being overwritten by someone else using his computer.
+		* If a database doesn't exist for the add-on, the user is now prompted
+		when they try to unlock whether she would like to import an existing
+		database (no password required) or to create the default database.
+		* A bug was fixed which would allow multiple replenishment activities to
+		run at once.
+		* A bug was fixed which caused the random encryption key that is generated
+		to be a byte string. Now it is correctly converted to a hex string.
+
 2012-06-11  Daniel Fox  <romaimperator@gmail.com>
 		Release 1.0.2
 		* Moved the check to generate an encryption key.
