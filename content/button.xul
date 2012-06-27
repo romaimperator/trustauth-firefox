@@ -20,6 +20,10 @@
         <menuitem id="trustauth-menu-unlock" label="Unlock" oncommand=""/>
         <menuseparator/>
         <menuitem disabled="true" id="trustauth-menu-change-password" label="Change Password" oncommand=""/>
+        <menuseparator/>
+        <menuitem disabled="true" label="Encrypted Database"/>
+        <menuitem disabled="true" id="trustauth-menu-import-encrypted" label="Import"/>
+        <menuitem disabled="true" id="trustauth-menu-export-encrypted" label="Export"/>
       </menupopup>
     </toolbarbutton>
   </toolbarpalette>
