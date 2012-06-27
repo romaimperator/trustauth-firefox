@@ -516,7 +516,12 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     if (db.is_password_set()) {
       prompt_password();
     } else {
-      prompt_new_password();
+      if (prompt_import_database()) {
+        import_encrypted_database(true);
+        prompt_password();
+      } else {
+        prompt_new_password();
+      }
     }
   };
 
@@ -770,6 +775,27 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
       return null;
     }
   };
+
+  /**
+   * Asks the user if they want to import an existing database or to create a new one.
+   */
+  var prompt_import_database = function() {
+    var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+                            .getService(Components.interfaces.nsIPromptService);
+
+    var check = {value: false}; // default the checkbox to false
+
+    var flags = prompts.BUTTON_POS_0 * prompts.BUTTON_TITLE_YES +
+                prompts.BUTTON_POS_1 * prompts.BUTTON_TITLE_CANCEL  +
+                prompts.BUTTON_POS_2 * prompts.BUTTON_TITLE_NO;
+
+    var button = prompts.confirmEx(null, "New Database!",
+                                   "It appears you don't currently have a TrustAuth database. Would you like to import one? If not one will be created for you.",
+                                   flags, "", "", "", null, check);
+
+    // The checkbox will be hidden, and button will contain the index of the button pressed 0, 1, or 2.
+    return (button === 0); // Return true only if they selected yes
+};
 
   /*
    * Prompts the user to enter a new master password.
