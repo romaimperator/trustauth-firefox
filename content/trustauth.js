@@ -132,7 +132,11 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     add_trustauth_key_listener();
     set_button_image(TRUSTAUTH_LOGO);
     add_listener(FIREFOX_CHANGE_PASSWORD_ID, "click", change_password);
+    add_listener(FIREFOX_IMPORT_ENCRYPTED_ID, "click", function anon_import() { import_encrypted_database(); });
+    add_listener(FIREFOX_EXPORT_ENCRYPTED_ID, "click", function anon_export() { export_encrypted_database(); });
     set_disabled_status(FIREFOX_CHANGE_PASSWORD_ID, false);
+    set_disabled_status(FIREFOX_IMPORT_ENCRYPTED_ID, false);
+    set_disabled_status(FIREFOX_EXPORT_ENCRYPTED_ID, false);
     replenish_cache(); // Needs to be last since it is not asynchronous
   };
 
@@ -327,7 +331,11 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     password_key = null;
     set_button_image(TRUSTAUTH_LOGO_DISABLED);
     remove_listener(FIREFOX_CHANGE_PASSWORD_ID, "click", change_password);
+    remove_listener(FIREFOX_IMPORT_ENCRYPTED_ID, "click", anon_import);
+    remove_listener(FIREFOX_EXPORT_ENCRYPTED_ID, "click", anon_export);
     set_disabled_status(FIREFOX_CHANGE_PASSWORD_ID, true);
+    set_disabled_status(FIREFOX_IMPORT_ENCRYPTED_ID, true);
+    set_disabled_status(FIREFOX_EXPORT_ENCRYPTED_ID, true);
   }
 
   /**
@@ -646,13 +654,67 @@ SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
     }
   };
 
+  /**
+   * Handles exporting a database from the add-on.
+   */
+  var export_encrypted_database = function() {
+    if ( ! is_unlocked()) { return; }
+
+    var output_file = open_dialog(true);
+    if (output_file) {
+      Components.utils.import("resource://gre/modules/FileUtils.jsm");
+      var file = FileUtils.getFile("ProfD", ["trustauth", "trustauth.sqlite"]);
+      var ext = (output_file.leafName.substr(-4, 4) === '.tdb') ? '' : '.tdb';
+      file.copyTo(output_file.parent, output_file.leafName + ext);
+      show_notification("Database successfully exported!", 3000);
+    }
+  };
+
+  /**
+   * Handles importing a database to the add-on.
+   *
+   * @param {bool} initial_import if true the database overwrite warning is not displayed reguardless of the preference
+   */
+  var import_encrypted_database = function(initial_import) {
+    initial_import = (utils.isset(initial_import)) ? initial_import : false;
+
+    if ( ! is_unlocked() && ! initial_import) { return; }
+
+    // Check if the user should be notified of the overwrite
+    if ( ! initial_import && prefs.get_b_pref("inform_database_overwrite")) {
+      var prompts = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
+                          .getService(Components.interfaces.nsIPromptService);
+      var check = {value: false};
+      var result = prompts.confirmCheck(null,
+                                        "Your existing database will be overwritten!",
+                                        "If you choose to import a database, your existing database will be replaced." +
+                                        " If you want to save it hit cancel and export it first. Afterwards import the new database."
+                                        , "Don't show again", check);
+      prefs.set_b_pref("inform_database_overwrite", !check.value);
+      if ( ! result) { return; }
+    }
+
+    var input_file = open_dialog(false);
+    if (input_file) {
+      Components.utils.import("resource://gre/modules/FileUtils.jsm");
+      var output_file = FileUtils.getFile("ProfD", ["trustauth", "trustauth.sqlite"]);
+      input_file.copyTo(output_file.parent, output_file.leafName);
+
+      // Update the salts
+      SALTS['ENC_KEY'] = db.fetch_or_store_salt(SALT_IDS['ENC_KEY']);
+      SALTS['STORAGE'] = db.fetch_or_store_salt(SALT_IDS['STORAGE']);
+      SALTS['PASSWORD'] = db.fetch_or_store_salt(SALT_IDS['PASSWORD']);
+
+      show_notification("Database successfully imported!", 3000);
+    }
+  }
+
   /*
    * Initializes the javascript listeners for the buttons on the preference page.
    */
   var init_listener = function() {
     gBrowser.addEventListener("load", on_page_load, true);
     add_listener(FIREFOX_UNLOCK_ID, "click", prompt_or_set_new_password);
-    document.getElementById(FIREFOX_CHANGE_PASSWORD_ID).addEventListener("click", change_password, false);
     gBrowser.addEventListener("mousemove", on_mouse_move, true);
   };
 
